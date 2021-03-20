@@ -68,13 +68,13 @@ int main()
 
     // TODO: STUFF
 
-    /*
+    
     waitpid(raceManagerPID, 0, 0);
     waitpid(malfunctionManagerPID, 0, 0);
 
     shmdt(mem);
     shmctl(shmid, IPC_RMID, NULL);
-    exit(0);*/
+    exit(0);
 
     return 0;
 }
