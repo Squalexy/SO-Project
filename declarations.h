@@ -1,3 +1,6 @@
+#ifndef declarations_h
+#define declarations_h
+
 // ------------------ includes ------------------ //
 
 #include <stdio.h>
@@ -10,15 +13,22 @@
 #include <sys/shm.h>
 #include <semaphore.h>
 #include <pthread.h>
+#include <time.h>
 
 // ------------------ defines ------------------ //
 
-#define ARRAYSIZE 8
+#define ARRAYSIZE 9
 #define LINESIZE 100
+#define BOX_FREE 0
+#define BOX_FULL 1
+#define BOX_RESERVED 2
 
 // ------------------ structures ------------------ //
 
 // ------------------ variables ------------------ //
+
+char log_text[LINESIZE];
+extern int max_carros;
 
 int shmid;
 pid_t raceManagerPID, malfunctionManagerPID;
@@ -30,3 +40,6 @@ void malfunctionManager(void);
 void raceManager(int n_teams);
 void *carThread(void *carID_p);
 void teamManager(int teamID);
+void write_logfile(char *text_to_write);
+
+#endif

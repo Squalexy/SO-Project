@@ -1,10 +1,10 @@
 // compilar: gcc -c -Wall main.c -o main
 
 #include "declarations.h"
+int max_carros;
 
 int main()
 {
-
     int *file_contents = read_content_from_file();
 
     //int time_units = file_contents[0];
@@ -12,10 +12,11 @@ int main()
     //int n_voltas = file_contents[2];
     int n_teams = file_contents[3];
     printf("File contents [3]: %d\n", file_contents[3]);
-    //int T_Avaria = file_contents[4];
-    //int T_Box_min = file_contents[5];
-    //int T_Box_Max = file_contents[6];
-    //int fuel_capacity = file_contents[7];
+    max_carros = file_contents[4];
+    //int T_Avaria = file_contents[5];
+    //int T_Box_min = file_contents[6];
+    //int T_Box_Max = file_contents[7];
+    //int fuel_capacity = file_contents[8];
 
     for (int i = 0; i < ARRAYSIZE; i++)
     {
@@ -44,12 +45,16 @@ int main()
 
     if ((raceManagerPID = fork()) == 0)
     {
-        printf("[%ld] Race Manager process created\n", (long)getpid());
+        // printf("[%ld] Race Manager process created\n", (long)getpid());
+        char sim_start[] = "SIMULATOR STARTING";
+        write_logfile(sim_start);
         raceManager(n_teams);
     }
     else if (raceManagerPID == -1)
     {
-        perror("Error creating Race Manager process\n");
+        // perror("Error creating Race Manager process\n");
+        char err_race[] = "ERROR CREATING RACE MANAGER PROCESS";
+        write_logfile(err_race);
         exit(1);
     }
 
@@ -60,21 +65,22 @@ int main()
     }
     else if (malfunctionManagerPID == -1)
     {
-        perror("Error creating Malfunction Manager process\n");
+        // perror("Error creating Malfunction Manager process\n");
+        char err_malfunction[] = "ERROR CREATING MALFUNCTION MANAGER PROCESS";
+        write_logfile(err_malfunction);
         exit(1);
     }
 
     // -------------------- RACE START -------------------- //
 
-    // TODO: STUFF
-
-    /*
     waitpid(raceManagerPID, 0, 0);
     waitpid(malfunctionManagerPID, 0, 0);
 
     shmdt(mem);
     shmctl(shmid, IPC_RMID, NULL);
-    exit(0);*/
+
+    char end_sim[] = "SIMULATOR CLOSING";
+    write_logfile(end_sim);
 
     return 0;
 }

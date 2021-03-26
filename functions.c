@@ -1,5 +1,4 @@
 #include "declarations.h"
-#include <pthread.h>
 
 int *read_content_from_file()
 {
@@ -11,7 +10,7 @@ int *read_content_from_file()
 
     if ((fptr = fopen("config.txt", "r")) == NULL)
     {
-        printf("Error! opening file\n");
+        // write_logfile("ERROR OPENING FILE");
         exit(1);
     }
 
@@ -34,12 +33,36 @@ int *read_content_from_file()
 
     if (file_contents[3] < 3)
     {
-        perror("Error opening file. Number of teams below 3.\n");
+        // perror("Error opening file. Number of teams below 3.\n");
+        // write_logfile("ERROR OPENING FILE, NUMBER");
         exit(1);
     }
 
     fclose(fptr);
     return file_contents;
+}
+
+void write_logfile(char *text_to_write)
+{
+    FILE *fptr;
+    fptr = fopen("log.txt", "a");
+    if (fptr == NULL)
+    {
+        perror("Error opening file.\n");
+        exit(1);
+    }
+
+    int hours, minutes, seconds;
+    time_t now = time(NULL);
+
+    struct tm *local = localtime(&now);
+    hours = local->tm_hour;
+    minutes = local->tm_min;
+    seconds = local->tm_sec;
+    printf("%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
+    fprintf(fptr, "%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
+
+    fclose(fptr);
 }
 
 void malfunctionManager(void)
@@ -64,48 +87,52 @@ void raceManager(int n_teams)
         }
         else if (teamPID == -1)
         {
-            perror("Error creating Team Manager process\n");
+            // perror("Error creating Team Manager process\n");
+            char err_team[] = "ERROR CREATING TEAM MANAGER PROCESS";
+            write_logfile(err_team);
             exit(1);
         }
-        teams[i] = teamPID;
+        teams[i] = teamPID; // teams[ID_1, ID_2, ID_3,...]
     }
 
     // wait for teams
     for (int i = 0; i < n_teams; i++)
     {
-        waitpid(teams[i], 0, 0);
+        waitpid(teams[i], NULL, 0);
     }
 
     printf("[%ld] Race Manager process finished\n", (long)getpid());
     exit(0);
 }
 
-void *carThread(void *carID_p)
-{
-    int carID = *((int *)carID_p);
-    printf("[%ld] Car #%d thread working\n", (long)getpid(), carID);
-    sleep(5);
-    printf("[%ld] Car #%d thread finished\n", (long)getpid(), carID);
-    pthread_exit(0);
-}
-
 void teamManager(int teamID)
 {
     printf("[%ld] Team Manager #%d process working\n", (long)getpid(), teamID);
-    // TODO: get num cars from ipc
+
     int numCar = 2;
-    pthread_t carThreads[numCar];
-    int carID[numCar];
+    int carID[max_carros];
+    pthread_t carThreads[max_carros];
+
+    if (numCar > max_carros)
+    {
+        char err_cars[] = "NUMBER OF CARS ABOVE THE MAXIMUM ALLOWED";
+        write_logfile(err_cars);
+        exit(1);
+    }
 
     // create car threads
     for (int i = 0; i < numCar; i++)
     {
-        carID[i] = i;
+        carID[i] = (teamID * numCar) + i;
         pthread_create(&carThreads[i], NULL, carThread, &carID[i]);
-        printf("[%ld] Car #%d thread created\n", (long)getpid(), carID[i]);
+        //printf("[%ld] Car #%d thread created\n", (long)getpid(), carID[i]);
+
+        char car_text[LINESIZE];
+        sprintf(car_text, "NEW CAR LOADED => TEAM %d, CAR: %02d", teamID, carID[i]);
+        write_logfile(car_text);
     }
 
-    // join car threads
+    // wait for threads to die
     for (int i = 0; i < numCar; i++)
     {
         pthread_join(carThreads[i], NULL);
@@ -114,3 +141,16 @@ void teamManager(int teamID)
     printf("[%ld] Team Manager #%d process finished\n", (long)getpid(), teamID);
     exit(0);
 }
+
+void *carThread(void *carID_p)
+{
+    int carID = *((int *)carID_p);
+
+    printf("[%ld] Car #%d thread working\n", (long)getpid(), carID);
+    sleep(5);
+    printf("[%ld] Car #%d thread finished\n", (long)getpid(), carID);
+    pthread_exit(NULL);
+}
+
+// TODO: - nº do carro em cada equipa é igual
+// TODO: - são criadas threads carro com o mesmo ID, em cada equipa

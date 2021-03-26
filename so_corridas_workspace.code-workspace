@@ -2,6 +2,9 @@
   "folders": [
     {
       "path": "."
+    },
+    {
+      "path": "..\\..\\..\\2.2. SO\\PL"
     }
   ],
   "settings": {
