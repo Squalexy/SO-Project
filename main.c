@@ -73,7 +73,9 @@ int main()
 
     // -------------------- RACE START -------------------- //
 
-    waitpid(raceManagerPID, 0, 0);
+    // TODO: STUFF
+
+        waitpid(raceManagerPID, 0, 0);
     waitpid(malfunctionManagerPID, 0, 0);
 
     shmdt(mem);
