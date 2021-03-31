@@ -42,6 +42,36 @@ int *read_content_from_file()
     return file_contents;
 }
 
+void print_content_from_file(int **file_contents)
+{
+    printf("--- CONTENT FROM FILE ---\n");
+    for (int i = 0; i < ARRAYSIZE; i++)
+    {
+        switch (i)
+        {
+        case 0:
+            printf("TIME UNITS : %d\n", *file_contents[i]);
+        case 1:
+            printf("TURN DISTANCE : %d\n", *file_contents[i]);
+        case 2:
+            printf("TURNS NUMBER : %d\n", *file_contents[i]);
+        case 3:
+            printf("TEAMS NUMBER : %d\n", *file_contents[i]);
+        case 4:
+            printf("CARS LIMIT : %d\n", *file_contents[i]);
+        case 5:
+            printf("T_AVARIA : %d\n", *file_contents[i]);
+        case 6:
+            printf("T_BOX_MIN : %d\n", *file_contents[i]);
+        case 7:
+            printf("T_BOX_MAX : %d\n", *file_contents[i]);
+        case 8:
+            printf("FUEL CAPACITY : %d\n", *file_contents[i]);
+        }
+    }
+    printf("\n");
+}
+
 void write_logfile(char *text_to_write)
 {
     FILE *fptr;
