@@ -5,23 +5,35 @@ int max_carros;
 
 int main()
 {
+
+    // -------------------- RESET LOG FILE -------------------- //
+
+    fclose(fopen("log.txt", "w"));
+
+    // -------------------- READ CONTENT FROM LOG FILE -------------------- //
+
     int *file_contents = read_content_from_file();
 
     //int time_units = file_contents[0];
     //int turn_distance = file_contents[1];
-    //int n_voltas = file_contents[2];
+    //int turns_number = file_contents[2];
     int n_teams = file_contents[3];
-    printf("File contents [3]: %d\n", file_contents[3]);
     max_carros = file_contents[4];
     //int T_Avaria = file_contents[5];
     //int T_Box_min = file_contents[6];
     //int T_Box_Max = file_contents[7];
     //int fuel_capacity = file_contents[8];
 
-    for (int i = 0; i < ARRAYSIZE; i++)
-    {
-        printf("%d\n", file_contents[i]);
-    }
+    // -------------------- PRINT CONTENT FROM LOG FILE -------------------- //
+
+    print_content_from_file(file_contents);
+
+    // -------------------- CREATE SEMAPHORES -------------------- //
+
+    sem_unlink("WRITING");
+    writing = sem_open("WRITING", O_CREAT | O_EXCL, 0700, 1);
+
+    // -------------------- CREATE SHARED MEMORY -------------------- //
 
     typedef struct mem_struct
     {
@@ -30,7 +42,6 @@ int main()
 
     mem_struct *mem;
 
-    // shared memory
     if ((shmid = shmget(IPC_PRIVATE, sizeof(mem_struct), IPC_CREAT | 0766)) < 0)
     {
         perror("shmget error!\n");
@@ -43,20 +54,22 @@ int main()
         exit(1);
     }
 
+    // -------------------- SIMULATOR START -------------------- //
+
     if ((raceManagerPID = fork()) == 0)
     {
         // printf("[%ld] Race Manager process created\n", (long)getpid());
-        char sim_start[] = "SIMULATOR STARTING";
-        write_logfile(sim_start);
+        write_logfile("SIMULATOR STARTING");
         raceManager(n_teams);
     }
     else if (raceManagerPID == -1)
     {
         // perror("Error creating Race Manager process\n");
-        char err_race[] = "ERROR CREATING RACE MANAGER PROCESS";
-        write_logfile(err_race);
+        write_logfile("ERROR CREATING RACE MANAGER PROCESS");
         exit(1);
     }
+
+    // -------------------- MALFUNCTION MANAGER START -------------------- //
 
     if ((malfunctionManagerPID = fork()) == 0)
     {
@@ -66,23 +79,22 @@ int main()
     else if (malfunctionManagerPID == -1)
     {
         // perror("Error creating Malfunction Manager process\n");
-        char err_malfunction[] = "ERROR CREATING MALFUNCTION MANAGER PROCESS";
-        write_logfile(err_malfunction);
+        write_logfile("ERROR CREATING MALFUNCTION MANAGER PROCESS");
         exit(1);
     }
 
-    // -------------------- RACE START -------------------- //
+    // -------------------- SIMULATOR END -------------------- //
 
-    // TODO: STUFF
-
-        waitpid(raceManagerPID, 0, 0);
+    waitpid(raceManagerPID, 0, 0);
     waitpid(malfunctionManagerPID, 0, 0);
+
+    sem_close(writing);
+    sem_unlink("WRITING");
 
     shmdt(mem);
     shmctl(shmid, IPC_RMID, NULL);
 
-    char end_sim[] = "SIMULATOR CLOSING";
-    write_logfile(end_sim);
+    write_logfile("SIMULATOR CLOSING");
 
     return 0;
 }

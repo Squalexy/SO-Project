@@ -42,32 +42,29 @@ int *read_content_from_file()
     return file_contents;
 }
 
-void print_content_from_file(int **file_contents)
+void print_content_from_file(int *file_contents)
 {
     printf("--- CONTENT FROM FILE ---\n");
     for (int i = 0; i < ARRAYSIZE; i++)
     {
-        switch (i)
-        {
-        case 0:
-            printf("TIME UNITS : %d\n", *file_contents[i]);
-        case 1:
-            printf("TURN DISTANCE : %d\n", *file_contents[i]);
-        case 2:
-            printf("TURNS NUMBER : %d\n", *file_contents[i]);
-        case 3:
-            printf("TEAMS NUMBER : %d\n", *file_contents[i]);
-        case 4:
-            printf("CARS LIMIT : %d\n", *file_contents[i]);
-        case 5:
-            printf("T_AVARIA : %d\n", *file_contents[i]);
-        case 6:
-            printf("T_BOX_MIN : %d\n", *file_contents[i]);
-        case 7:
-            printf("T_BOX_MAX : %d\n", *file_contents[i]);
-        case 8:
-            printf("FUEL CAPACITY : %d\n", *file_contents[i]);
-        }
+        if (i == 0)
+            printf("TIME UNITS : %d\n", file_contents[i]);
+        else if (i == 1)
+            printf("TURN DISTANCE : %d\n", file_contents[i]);
+        else if (i == 2)
+            printf("TURNS NUMBER : %d\n", file_contents[i]);
+        else if (i == 3)
+            printf("TEAMS NUMBER : %d\n", file_contents[i]);
+        else if (i == 4)
+            printf("CARS LIMIT : %d\n", file_contents[i]);
+        else if (i == 5)
+            printf("T_AVARIA : %d\n", file_contents[i]);
+        else if (i == 6)
+            printf("T_BOX_MIN : %d\n", file_contents[i]);
+        else if (i == 7)
+            printf("T_BOX_MAX : %d\n", file_contents[i]);
+        else if (i == 8)
+            printf("FUEL CAPACITY : %d\n", file_contents[i]);
     }
     printf("\n");
 }
@@ -89,8 +86,11 @@ void write_logfile(char *text_to_write)
     hours = local->tm_hour;
     minutes = local->tm_min;
     seconds = local->tm_sec;
+
+    sem_wait(writing);
     printf("%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
     fprintf(fptr, "%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
+    sem_post(writing);
 
     fclose(fptr);
 }
@@ -118,8 +118,7 @@ void raceManager(int n_teams)
         else if (teamPID == -1)
         {
             // perror("Error creating Team Manager process\n");
-            char err_team[] = "ERROR CREATING TEAM MANAGER PROCESS";
-            write_logfile(err_team);
+            write_logfile("ERROR CREATING TEAM MANAGER PROCESS");
             exit(1);
         }
         teams[i] = teamPID; // teams[ID_1, ID_2, ID_3,...]
@@ -145,8 +144,7 @@ void teamManager(int teamID)
 
     if (numCar > max_carros)
     {
-        char err_cars[] = "NUMBER OF CARS ABOVE THE MAXIMUM ALLOWED";
-        write_logfile(err_cars);
+        write_logfile("NUMBER OF CARS ABOVE THE MAXIMUM ALLOWED");
         exit(1);
     }
 
@@ -181,6 +179,3 @@ void *carThread(void *carID_p)
     printf("[%ld] Car #%d thread finished\n", (long)getpid(), carID);
     pthread_exit(NULL);
 }
-
-// TODO: - nº do carro em cada equipa é igual
-// TODO: - são criadas threads carro com o mesmo ID, em cada equipa

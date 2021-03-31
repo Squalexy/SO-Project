@@ -7,11 +7,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/stat.h>
 #include <semaphore.h>
+#include <fcntl.h>
 #include <pthread.h>
 #include <time.h>
 
@@ -32,6 +35,7 @@ extern int max_carros;
 
 int shmid;
 pid_t raceManagerPID, malfunctionManagerPID;
+sem_t *writing;
 
 // ------------------ functions ------------------ //
 
@@ -41,5 +45,6 @@ void raceManager(int n_teams);
 void *carThread(void *carID_p);
 void teamManager(int teamID);
 void write_logfile(char *text_to_write);
+void print_content_from_file(int *file_contents);
 
 #endif
