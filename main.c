@@ -88,13 +88,13 @@ int main()
     waitpid(raceManagerPID, 0, 0);
     waitpid(malfunctionManagerPID, 0, 0);
 
+    write_logfile("SIMULATOR CLOSING");
+    
     sem_close(writing);
     sem_unlink("WRITING");
 
     shmdt(mem);
     shmctl(shmid, IPC_RMID, NULL);
-
-    write_logfile("SIMULATOR CLOSING");
 
     return 0;
 }
