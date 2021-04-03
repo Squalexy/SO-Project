@@ -1,4 +1,5 @@
 #include "declarations.h"
+#include <string.h>
 
 int *read_content_from_file()
 {
@@ -10,7 +11,7 @@ int *read_content_from_file()
 
     if ((fptr = fopen("config.txt", "r")) == NULL)
     {
-        // write_logfile("ERROR OPENING FILE");
+        write_logfile("ERROR OPENING FILE");
         exit(1);
     }
 
@@ -18,23 +19,33 @@ int *read_content_from_file()
     {
         if (fgets(line, LINESIZE, fptr) != NULL)
         {
+
+            // No linux podem surgir problemas devido ao tamanho da string, isto serve para meter a string com o tamanho exato
+            line[strlen(line) - 2] = '\0';
+
             if (strchr(line, ',') != NULL)
             {
-                token = strtok(line, ",");
+                token = strtok(line, ", ");
+                printf("IF1: A entrar no atoi: %s\n", token);
                 file_contents[i] = atoi(token);
                 i++;
-                token = strtok(NULL, "");
+                token = strtok(NULL, ", ");
+                printf("IF2: A entrar no atoi: %s\n", token);
                 file_contents[i] = atoi(token);
             }
             else
-                file_contents[i] = atoi(line);
+            {
+                token = strtok(line, ", ");
+                printf("ELSE: A entrar no atoi: %s\n", token);
+                file_contents[i] = atoi(token);
+            }
         }
     }
 
     if (file_contents[3] < 3)
     {
         // perror("Error opening file. Number of teams below 3.\n");
-        // write_logfile("ERROR OPENING FILE, NUMBER");
+        write_logfile("ERROR OPENING FILE, NUMBER");
         exit(1);
     }
 

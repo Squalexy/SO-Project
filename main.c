@@ -89,7 +89,7 @@ int main()
     waitpid(malfunctionManagerPID, 0, 0);
 
     write_logfile("SIMULATOR CLOSING");
-    
+
     sem_close(writing);
     sem_unlink("WRITING");
 
