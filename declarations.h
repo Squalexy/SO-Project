@@ -25,17 +25,49 @@
 #define BOX_FREE 0
 #define BOX_FULL 1
 #define BOX_RESERVED 2
-
-// ------------------ structures ------------------ //
+#define PIPE_NAME "np_race_manager"
 
 // ------------------ variables ------------------ //
 
 char log_text[LINESIZE];
-extern int max_carros;
 
 int shmid;
 pid_t raceManagerPID, malfunctionManagerPID;
 sem_t *writing;
+
+// ------------------ structures of shared memory ------------------ //
+
+typedef struct config_struct_
+{
+    int time_units;
+    int turn_distance;
+    int turns_number;
+    int n_teams;
+    int max_carros;
+    int T_Avaria;
+    int T_Box_min;
+    int T_Box_Max;
+    int fuel_capacity;
+} config_struct;
+
+typedef struct car_struct_
+{
+    int id_team;
+    float combustivel;
+    float dist_percorrida;
+    int voltas;
+    char *state;
+} car_struct;
+
+typedef struct team_box_struct_
+{
+    int box_state;
+    car_struct car;
+} team_box_struct;
+
+config_struct *config;
+car_struct *cars;
+team_box_struct *team_box;
 
 // ------------------ functions ------------------ //
 

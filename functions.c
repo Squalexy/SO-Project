@@ -112,7 +112,12 @@ void write_logfile(char *text_to_write)
 void malfunctionManager(void)
 {
     printf("[%ld] Malfunction Manager process working\n", (long)getpid());
-    sleep(5);
+    // while (1)
+    // {
+    //     sleep(config->T_Avaria * config->time_units);
+    //     // TODO: aceder a fiabilidade do carro e com base nessa fiabilidade cria uma avaria
+    //     // TODO: criar avaria
+    // }
     printf("[%ld] Malfunction Manager process finished\n", (long)getpid());
     exit(0);
 }
@@ -122,6 +127,19 @@ void raceManager(int n_teams)
     printf("[%ld] Race Manager process working\n", (long)getpid());
 
     pid_t teams[n_teams];
+
+    // open pipe for reading
+    int fd;
+    if ((fd = open(PIPE_NAME, O_RDONLY)) < 0)
+    {
+        perror("Cannot open pipe for reading\n");
+        exit(1);
+    }
+    dup2(fd, fileno(stdout));
+    close(fd);
+
+    // ------------------ create teams ------------------ //
+
     for (int i = 0; i < n_teams; i++)
     {
         pid_t teamPID;
@@ -131,14 +149,14 @@ void raceManager(int n_teams)
         }
         else if (teamPID == -1)
         {
-            // perror("Error creating Team Manager process\n");
             write_logfile("ERROR CREATING TEAM MANAGER PROCESS");
             exit(1);
         }
         teams[i] = teamPID; // teams[ID_1, ID_2, ID_3,...]
     }
 
-    // wait for teams
+    // ------------------ wait for teams ------------------ //
+
     for (int i = 0; i < n_teams; i++)
     {
         waitpid(teams[i], NULL, 0);
@@ -152,17 +170,20 @@ void teamManager(int teamID)
 {
     printf("[%ld] Team Manager #%d process working\n", (long)getpid(), teamID);
 
+    // TOOO: numCar a ser alterado por named pipe!
     int numCar = 2;
-    int carID[max_carros];
-    pthread_t carThreads[max_carros];
 
-    if (numCar > max_carros)
+    int carID[config->max_carros];
+    pthread_t carThreads[config->max_carros];
+
+    if (numCar > config->max_carros)
     {
         write_logfile("NUMBER OF CARS ABOVE THE MAXIMUM ALLOWED");
         exit(1);
     }
 
-    // create car threads
+    // ------------------ create car threads ------------------ //
+
     for (int i = 0; i < numCar; i++)
     {
         carID[i] = (teamID * numCar) + i;
@@ -174,7 +195,14 @@ void teamManager(int teamID)
         write_logfile(car_text);
     }
 
-    // wait for threads to die
+    // ------------------ manage boxes and cars' fuel ------------------ //
+
+    //TODO: aceder ao estado da box
+    //TODO: se box livre e carro precisar de ir à box, repara o carro
+    //TODO: reparar o carro: sleep de (T_box_min a T_box_max) + sleep de (2 time units)
+
+    // ------------------ wait for car threads to die ------------------ //
+
     for (int i = 0; i < numCar; i++)
     {
         pthread_join(carThreads[i], NULL);
@@ -187,9 +215,14 @@ void teamManager(int teamID)
 void *carThread(void *carID_p)
 {
     int carID = *((int *)carID_p);
-
     printf("[%ld] Car #%d thread working\n", (long)getpid(), carID);
+
+    //TODO: receber mensagem do gestor de avarias
+    //TODO: switch case estado 1)Corrida 2)Segurança 3)Box 4)Desistência 5)Terminado
+    //TODO: todas as alterações são notificadas por UNNAMED PIPE
+
     sleep(5);
+
     printf("[%ld] Car #%d thread finished\n", (long)getpid(), carID);
     pthread_exit(NULL);
 }

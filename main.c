@@ -5,7 +5,6 @@ Projeto realizado por:
 */
 
 #include "declarations.h"
-int max_carros;
 
 int main()
 {
@@ -17,16 +16,15 @@ int main()
     // -------------------- READ CONTENT FROM LOG FILE -------------------- //
 
     int *file_contents = read_content_from_file();
-
-    //int time_units = file_contents[0];
-    //int turn_distance = file_contents[1];
-    //int turns_number = file_contents[2];
+    int time_units = file_contents[0];
+    int turn_distance = file_contents[1];
+    int turns_number = file_contents[2];
     int n_teams = file_contents[3];
-    max_carros = file_contents[4];
-    //int T_Avaria = file_contents[5];
-    //int T_Box_min = file_contents[6];
-    //int T_Box_Max = file_contents[7];
-    //int fuel_capacity = file_contents[8];
+    int max_carros = file_contents[4];
+    int T_Avaria = file_contents[5];
+    int T_Box_min = file_contents[6];
+    int T_Box_Max = file_contents[7];
+    int fuel_capacity = file_contents[8];
 
     // -------------------- PRINT CONTENT FROM LOG FILE -------------------- //
 
@@ -39,24 +37,44 @@ int main()
 
     // -------------------- CREATE SHARED MEMORY -------------------- //
 
-    typedef struct mem_struct
-    {
-        char box_state[n_teams][LINESIZE];
-    } mem_struct;
+    char *mem;
 
-    mem_struct *mem;
-
-    if ((shmid = shmget(IPC_PRIVATE, sizeof(mem_struct), IPC_CREAT | 0766)) < 0)
+    if ((shmid = shmget(IPC_PRIVATE, sizeof(config_struct) + sizeof(car_struct) * max_carros * n_teams + sizeof(team_box_struct) * n_teams, IPC_CREAT | 0766)) < 0)
     {
         perror("shmget error!\n");
         exit(1);
     }
 
-    if ((mem = (mem_struct *)shmat(shmid, NULL, 0)) == (mem_struct *)-1)
+    if ((mem = (char *)shmat(shmid, NULL, 0)) == (char *)-1)
     {
         perror("shmat error!\n");
         exit(1);
     }
+
+    config = (config_struct *)mem;
+    cars = (car_struct *)(mem + sizeof(config_struct));
+    team_box = (team_box_struct *)(mem + sizeof(config_struct) + max_carros * n_teams * sizeof(car_struct));
+
+    // -------------------- CREATE NAMED PIPE -------------------- //
+
+    if ((mkfifo(PIPE_NAME, O_CREAT | O_EXCL | 0755) < 0) && (errno != EEXIST))
+    {
+        perror("Cannot create pipe!\n");
+        exit(1);
+    }
+
+    // -------------------- OPEN NAMED PIPE FOR WRITING -------------------- //
+
+    int fd;
+    if ((fd = open(PIPE_NAME, O_WRONLY)) < 0)
+    {
+        perror("Cannot open pipe for writing\n");
+        exit(1);
+    }
+
+    // redirect stdin to the input of the named pipe
+    dup2(fd, fileno(stdin));
+    close(fd);
 
     // -------------------- SIMULATOR START -------------------- //
 
