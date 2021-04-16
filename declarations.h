@@ -75,7 +75,7 @@ int *read_content_from_file();
 void malfunctionManager(void);
 void raceManager(int n_teams);
 void *carThread(void *carID_p);
-void teamManager(int teamID);
+void teamManager(int channels_write, int teamID);
 void write_logfile(char *text_to_write);
 void print_content_from_file(int *file_contents);
 

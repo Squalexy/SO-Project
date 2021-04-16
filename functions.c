@@ -27,7 +27,7 @@ int *read_content_from_file()
         {
 
             // No linux podem surgir problemas devido ao tamanho da string, isto serve para meter a string com o tamanho exato
-            line[strlen(line) - 2] = '\0';
+            // line[strlen(line) - 2] = '\0';
 
             if (strchr(line, ',') != NULL)
             {
@@ -128,6 +128,10 @@ void raceManager(int n_teams)
 
     pid_t teams[n_teams];
 
+    // -------------------- CREATE UNNAMED PIPES -------------------- //
+
+    int channels[n_teams][2];
+
     // open pipe for reading
     int fd;
     if ((fd = open(PIPE_NAME, O_RDONLY)) < 0)
@@ -138,14 +142,15 @@ void raceManager(int n_teams)
     dup2(fd, fileno(stdout));
     close(fd);
 
-    // ------------------ create teams ------------------ //
+    // -------------------- CREATE TEAMS -------------------- //
 
     for (int i = 0; i < n_teams; i++)
     {
         pid_t teamPID;
         if ((teamPID = fork()) == 0)
         {
-            teamManager(i);
+            close(channels[i][0]);
+            teamManager(channels[i][1], i);
         }
         else if (teamPID == -1)
         {
@@ -153,9 +158,16 @@ void raceManager(int n_teams)
             exit(1);
         }
         teams[i] = teamPID; // teams[ID_1, ID_2, ID_3,...]
+
+        // TODO: MANAGE READING OF PIPES
+        close(channels[i][1]);
+        /* while (1){
+            // SELECT PIPES
+        }
+        */
     }
 
-    // ------------------ wait for teams ------------------ //
+    // -------------------- WAIT FOR TEAMS -------------------- //
 
     for (int i = 0; i < n_teams; i++)
     {
@@ -166,7 +178,7 @@ void raceManager(int n_teams)
     exit(0);
 }
 
-void teamManager(int teamID)
+void teamManager(int channels_write, int teamID)
 {
     printf("[%ld] Team Manager #%d process working\n", (long)getpid(), teamID);
 
@@ -182,7 +194,7 @@ void teamManager(int teamID)
         exit(1);
     }
 
-    // ------------------ create car threads ------------------ //
+    // -------------------- CREATE CAR THREADS -------------------- //
 
     for (int i = 0; i < numCar; i++)
     {
@@ -194,6 +206,15 @@ void teamManager(int teamID)
         sprintf(car_text, "NEW CAR LOADED => TEAM %d, CAR: %02d", teamID, carID[i]);
         write_logfile(car_text);
     }
+
+    // -------------------- MANAGE WRITING PIPES -------------------- //
+
+    /*
+    while(1){
+        if estado qualquer cena
+        write(channels_write,)
+    }
+    */
 
     // ------------------ manage boxes and cars' fuel ------------------ //
 

@@ -8,6 +8,10 @@ Projeto realizado por:
 
 int main()
 {
+    // -------------------- CREATE SEMAPHORES -------------------- //
+
+    sem_unlink("WRITING");
+    writing = sem_open("WRITING", O_CREAT | O_EXCL, 0700, 1);
 
     // -------------------- RESET LOG FILE -------------------- //
 
@@ -29,11 +33,6 @@ int main()
     // -------------------- PRINT CONTENT FROM LOG FILE -------------------- //
 
     print_content_from_file(file_contents);
-
-    // -------------------- CREATE SEMAPHORES -------------------- //
-
-    sem_unlink("WRITING");
-    writing = sem_open("WRITING", O_CREAT | O_EXCL, 0700, 1);
 
     // -------------------- CREATE SHARED MEMORY -------------------- //
 
