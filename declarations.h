@@ -93,5 +93,6 @@ void *carThread(void *carID_p);
 void teamManager(int channels_write, int teamID);
 void write_logfile(char *text_to_write);
 void print_content_from_file(int *file_contents);
+int get_line(char * bf, int bfSize);
 
 #endif

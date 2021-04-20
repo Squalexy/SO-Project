@@ -66,19 +66,6 @@ int main()
         exit(1);
     }
 
-    // -------------------- OPEN NAMED PIPE FOR WRITING -------------------- //
-
-    int fd;
-    if ((fd = open(PIPE_NAME, O_WRONLY)) < 0)
-    {
-        perror("Cannot open pipe for writing\n");
-        exit(1);
-    }
-
-    // redirect stdin to the input of the named pipe
-    dup2(fd, fileno(stdin));
-    close(fd);
-
     // -------------------- SIMULATOR START -------------------- //
 
     if ((raceManagerPID = fork()) == 0)
@@ -106,6 +93,22 @@ int main()
         write_logfile("ERROR CREATING MALFUNCTION MANAGER PROCESS");
         exit(1);
     }
+
+    // -------------------- OPEN NAMED PIPE FOR WRITING -------------------- //
+
+    int fd;
+    if ((fd = open(PIPE_NAME, O_WRONLY)) < 0)
+    {
+        perror("Cannot open pipe for writing\n");
+        exit(1);
+    }
+
+    char buffer[LINESIZE];
+    int nread;
+    nread = get_line(buffer, LINESIZE);
+    
+    write(fd, buffer, nread + 1);
+    close(fd);
 
     // -------------------- SIMULATOR END -------------------- //
 

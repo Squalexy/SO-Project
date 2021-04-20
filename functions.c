@@ -140,9 +140,13 @@ void raceManager(int n_teams)
         perror("Cannot open pipe for reading\n");
         exit(1);
     }
+
     char buffer[LINESIZE];
-    read(fd, buffer, LINESIZE);
-    printf("Received from named pip");
+    int nread;
+    nread = read(fd, buffer, LINESIZE);
+    buffer[nread - 1] = '\0';
+    printf("Received from named pipe: \"%s\"\n", buffer);
+    
     close(fd);
 
     // -------------------- CREATE TEAMS -------------------- //
@@ -293,4 +297,24 @@ void *carThread(void *array_ids_p)
 
     printf("[%ld] Car #%d thread finished\n", (long)getpid(), cars[array_ids[1]]);
     pthread_exit(NULL);
+}
+
+int get_line(char * bf, int bfSize){
+    if (bfSize < 2) return -1;
+
+    // se nada foi introduzido
+    if (fgets(bf, bfSize, stdin) == NULL) return -1;
+
+    /* consome o overflow do buffer
+     * caso o \n tenha sido lido pelo fgets, ele estara no maximo na penultima posicao
+     * pelo que strcspn apenas devolve buffersize - 1, a ultima posicao, se nao o encontrou
+     * o que implica haver ainda input em stdin que ira ser descartado */
+    if (strcspn(bf, "\n") == bfSize - 1u) {
+        int c = 0;
+        while ((c = getchar()) != '\n' && c != EOF && c != 0);
+    }
+
+    // substituir \n ou o caracter final por \0
+    bf[strcspn(bf, "\n")] = 0;
+    return strlen(bf);
 }
