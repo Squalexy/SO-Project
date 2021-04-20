@@ -22,9 +22,20 @@
 
 #define ARRAYSIZE 9
 #define LINESIZE 100
+
+// box states
 #define BOX_FREE 0
 #define BOX_FULL 1
 #define BOX_RESERVED 2
+
+// car states
+#define BOX 0
+#define CORRIDA 1
+#define SEGURANCA 2
+#define DESISTENCIA 3
+#define TERMINADO 4
+
+// named pipe
 #define PIPE_NAME "np_race_manager"
 
 // ------------------ variables ------------------ //
@@ -57,6 +68,10 @@ typedef struct car_struct_
     float dist_percorrida;
     int voltas;
     char *state;
+    // from named pipe
+    int speed;
+    float consumption;
+    int reliability;
 } car_struct;
 
 typedef struct team_box_struct_

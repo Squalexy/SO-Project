@@ -10,25 +10,29 @@ int main()
 {
     // -------------------- CREATE SEMAPHORES -------------------- //
 
+    // mutex
     sem_unlink("WRITING");
     writing = sem_open("WRITING", O_CREAT | O_EXCL, 0700, 1);
+
+    // variable conditions
+    pthread_cond_t car_state = PTHREAD_COND_INITIALIZER;
 
     // -------------------- RESET LOG FILE -------------------- //
 
     fclose(fopen("log.txt", "w"));
 
-    // -------------------- READ CONTENT FROM LOG FILE -------------------- //
+    // -------------------- READ CONTENT FROM LOG FILE AND CREATE LOG FILE STRUCT -------------------- //
 
     int *file_contents = read_content_from_file();
-    int time_units = file_contents[0];
-    int turn_distance = file_contents[1];
-    int turns_number = file_contents[2];
-    int n_teams = file_contents[3];
-    int max_carros = file_contents[4];
-    int T_Avaria = file_contents[5];
-    int T_Box_min = file_contents[6];
-    int T_Box_Max = file_contents[7];
-    int fuel_capacity = file_contents[8];
+    config->time_units = file_contents[0];
+    config->turn_distance = file_contents[1];
+    config->turns_number = file_contents[2];
+    config->n_teams = file_contents[3];
+    config->max_carros = file_contents[4];
+    config->T_Avaria = file_contents[5];
+    config->T_Box_min = file_contents[6];
+    config->T_Box_Max = file_contents[7];
+    config->fuel_capacity = file_contents[8];
 
     // -------------------- PRINT CONTENT FROM LOG FILE -------------------- //
 
@@ -38,7 +42,7 @@ int main()
 
     char *mem;
 
-    if ((shmid = shmget(IPC_PRIVATE, sizeof(config_struct) + sizeof(car_struct) * max_carros * n_teams + sizeof(team_box_struct) * n_teams, IPC_CREAT | 0766)) < 0)
+    if ((shmid = shmget(IPC_PRIVATE, sizeof(config_struct) + sizeof(car_struct) * config->max_carros * config->n_teams + sizeof(team_box_struct) * config->n_teams, IPC_CREAT | 0766)) < 0)
     {
         perror("shmget error!\n");
         exit(1);
@@ -52,7 +56,7 @@ int main()
 
     config = (config_struct *)mem;
     cars = (car_struct *)(mem + sizeof(config_struct));
-    team_box = (team_box_struct *)(mem + sizeof(config_struct) + max_carros * n_teams * sizeof(car_struct));
+    team_box = (team_box_struct *)(mem + sizeof(config_struct) + config->max_carros * config->n_teams * sizeof(car_struct));
 
     // -------------------- CREATE NAMED PIPE -------------------- //
 
@@ -81,7 +85,7 @@ int main()
     {
         // printf("[%ld] Race Manager process created\n", (long)getpid());
         write_logfile("SIMULATOR STARTING");
-        raceManager(n_teams);
+        raceManager(config->n_teams);
     }
     else if (raceManagerPID == -1)
     {
@@ -110,8 +114,14 @@ int main()
 
     write_logfile("SIMULATOR CLOSING");
 
+    // close named pipe
+    unlink(PIPE_NAME);
+
+    // clean up semaphores
     sem_close(writing);
     sem_unlink("WRITING");
+    pthread_cond_destroy(&car_state);
+    pthread_exit(NULL);
 
     shmdt(mem);
     shmctl(shmid, IPC_RMID, NULL);
