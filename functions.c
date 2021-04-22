@@ -123,31 +123,28 @@ void malfunctionManager(void)
     exit(0);
 }
 
-void raceManager(int n_teams)
+void raceManager()
 {
-    printf("[%ld] Race Manager process working\n", (long)getpid());
-
+    int n_teams = config->n_teams;
     pid_t teams[n_teams];
+    fd_set read_set;
 
     // -------------------- CREATE UNNAMED PIPES -------------------- //
 
     int channels[n_teams][2];
-
-    // -------------------- OPEN PIPE FOR READING -------------------- //
-    int fd;
-    if ((fd = open(PIPE_NAME, O_RDONLY)) < 0)
+    for (int i = 0; i < n_teams; i++)
     {
-        perror("Cannot open pipe for reading\n");
-        exit(1);
+        pipe(channels[i]);
     }
 
-    char buffer[LINESIZE];
-    int nread;
-    nread = read(fd, buffer, LINESIZE);
-    buffer[nread - 1] = '\0';
-    printf("Received from named pipe: \"%s\"\n", buffer);
-    
-    close(fd);
+    // --------------- OPEN NAMED PIPE FOR READ-WRITE --------------- //
+
+    int fd_named_pipe;
+    if ((fd_named_pipe = open(PIPE_NAME, O_RDWR)) < 0)
+    {
+        perror("Cannot open pipe for read-write\n");
+        exit(1);
+    }
 
     // -------------------- CREATE TEAMS -------------------- //
 
@@ -165,13 +162,51 @@ void raceManager(int n_teams)
             exit(1);
         }
         teams[i] = teamPID; // teams[ID_1, ID_2, ID_3,...]
-
-        // TODO: MANAGE READING OF PIPES
         close(channels[i][1]);
-        /* while (1){
-            // SELECT PIPES
+    }
+
+    // ----------------------- WORK ----------------------- //
+    char buffer[LINESIZE];
+    int nread;
+
+    printf("[%ld] Race Manager process working\n", (long)getpid());
+    while (1)
+    {
+        FD_ZERO(&read_set);
+        for (int i = 0; i < n_teams; i++)
+        {
+            FD_SET(channels[i][0], &read_set);
         }
-        */
+        FD_SET(fd_named_pipe, &read_set);
+
+        // SELECT named pipe and unnamed pipes
+        if (select(fd_named_pipe + 1, &read_set, NULL, NULL, NULL) > 0)
+        {
+            for (int i = 0; i < n_teams; i++)
+            {
+                if (FD_ISSET(channels[i][0], &read_set))
+                {
+                    // if from unnamed pipe do something else about the car state
+                    nread = read(channels[i][0], buffer, LINESIZE);
+                    buffer[nread - 1] = '\0';
+                    printf("Received from team %d's unnamed pipe: \"%s\"\n", i, buffer);
+                }
+            }
+
+            if (FD_ISSET(fd_named_pipe, &read_set))
+            {
+                // if from named pipe check and do command
+                nread = read(fd_named_pipe, buffer, LINESIZE);
+                buffer[nread - 1] = '\0';
+
+                if (strncmp("ADDCAR", buffer, 7) == 0)
+                    printf("[RACE MANAGER Received \"%s\" command]\n");
+                else if (strcmp("START RACE!", buffer) == 0)
+                    printf("[RACE MANAGER received \"%s\" command]\nRace initiated!\n", str);
+                else
+                    printf("[RACE MANAGER received unknown command]: %s \n", str);
+            }
+        }
     }
 
     // -------------------- WAIT FOR TEAMS -------------------- //
@@ -180,6 +215,8 @@ void raceManager(int n_teams)
     {
         waitpid(teams[i], NULL, 0);
     }
+
+    clean_resources(fd_named_pipe, channels);
 
     printf("[%ld] Race Manager process finished\n", (long)getpid());
     exit(0);
@@ -228,12 +265,11 @@ void teamManager(int channels_write, int teamID)
     // -------------------- MANAGE WRITING PIPES -------------------- //
     // enviar informação do estado do carro para o Race Manager
 
-    /*
-    while(1){
-        if estado qualquer cena
-        write(channels_write,)
+    while (1)
+    {
+        // if estado qualquer cena
+        write(channels_write, <estado>, sizeof(int));
     }
-    */
 
     // -------------------- BOX STATE -------------------- //
 
@@ -299,22 +335,38 @@ void *carThread(void *array_ids_p)
     pthread_exit(NULL);
 }
 
-int get_line(char * bf, int bfSize){
-    if (bfSize < 2) return -1;
-
-    // se nada foi introduzido
-    if (fgets(bf, bfSize, stdin) == NULL) return -1;
-
-    /* consome o overflow do buffer
-     * caso o \n tenha sido lido pelo fgets, ele estara no maximo na penultima posicao
-     * pelo que strcspn apenas devolve buffersize - 1, a ultima posicao, se nao o encontrou
-     * o que implica haver ainda input em stdin que ira ser descartado */
-    if (strcspn(bf, "\n") == bfSize - 1u) {
-        int c = 0;
-        while ((c = getchar()) != '\n' && c != EOF && c != 0);
+void clean_resources(int fd_named_pipe, int **channels)
+{ // cleans all resources including closing of files
+    close(fd_named_pipe);
+    for (int i = 0; i < config->n_teams; i++)
+    {
+        close(channels[i][0]);
+        close(channels[i][1]);
     }
+    unlink(PIPE_NAME);
+}
 
-    // substituir \n ou o caracter final por \0
-    bf[strcspn(bf, "\n")] = 0;
-    return strlen(bf);
+void sigtstp(int signum)
+{
+    // -------------------- PRINT STATISTICS -------------------- //
+
+    //TODO: open statistics file
+
+    exit(0);
+}
+
+void sigint(int signum)
+{
+    signal(SIGINT, SIG_IGN);
+    for (int i = 0; i < config->n_teams * config->max_carros; i++)
+    {
+
+        // carros na box terminam
+        if (cars[i].state == BOX)
+        {
+            cars[i].state = TERMINADO;
+        }
+
+        // TODO: carros em corrida continuam
+    }
 }

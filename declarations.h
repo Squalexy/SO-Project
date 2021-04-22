@@ -29,11 +29,11 @@
 #define BOX_RESERVED 2
 
 // car states
-#define BOX 0
-#define CORRIDA 1
-#define SEGURANCA 2
-#define DESISTENCIA 3
-#define TERMINADO 4
+#define BOX 1
+#define CORRIDA 2
+#define SEGURANCA 3
+#define DESISTENCIA 4
+#define TERMINADO 5
 
 // named pipe
 #define PIPE_NAME "np_race_manager"
@@ -88,11 +88,10 @@ team_box_struct *team_box;
 
 int *read_content_from_file();
 void malfunctionManager(void);
-void raceManager(int n_teams);
+void raceManager();
 void *carThread(void *carID_p);
 void teamManager(int channels_write, int teamID);
 void write_logfile(char *text_to_write);
 void print_content_from_file(int *file_contents);
-int get_line(char * bf, int bfSize);
 
 #endif

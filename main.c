@@ -60,7 +60,8 @@ int main()
 
     // -------------------- CREATE NAMED PIPE -------------------- //
 
-    if ((mkfifo(PIPE_NAME, O_CREAT | O_EXCL | 0755) < 0) && (errno != EEXIST))
+    unlink(PIPE_NAME);
+    if ((mkfifo(PIPE_NAME, O_CREAT | O_EXCL | 0600) < 0) && (errno != EEXIST))
     {
         perror("Cannot create pipe!\n");
         exit(1);
@@ -72,7 +73,7 @@ int main()
     {
         // printf("[%ld] Race Manager process created\n", (long)getpid());
         write_logfile("SIMULATOR STARTING");
-        raceManager(config->n_teams);
+        raceManager();
     }
     else if (raceManagerPID == -1)
     {
@@ -93,22 +94,6 @@ int main()
         write_logfile("ERROR CREATING MALFUNCTION MANAGER PROCESS");
         exit(1);
     }
-
-    // -------------------- OPEN NAMED PIPE FOR WRITING -------------------- //
-
-    int fd;
-    if ((fd = open(PIPE_NAME, O_WRONLY)) < 0)
-    {
-        perror("Cannot open pipe for writing\n");
-        exit(1);
-    }
-
-    char buffer[LINESIZE];
-    int nread;
-    nread = get_line(buffer, LINESIZE);
-    
-    write(fd, buffer, nread + 1);
-    close(fd);
 
     // -------------------- SIMULATOR END -------------------- //
 
