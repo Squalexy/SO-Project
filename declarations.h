@@ -46,6 +46,8 @@ int shmid;
 pid_t raceManagerPID, malfunctionManagerPID;
 sem_t *writing;
 
+FILE *fptr;
+
 // ------------------ structures of shared memory ------------------ //
 
 typedef struct config_struct_

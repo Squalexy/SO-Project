@@ -25,10 +25,6 @@ int *read_content_from_file()
     {
         if (fgets(line, LINESIZE, fptr) != NULL)
         {
-
-            // No linux podem surgir problemas devido ao tamanho da string, isto serve para meter a string com o tamanho exato
-            // line[strlen(line) - 2] = '\0';
-
             if (strchr(line, ',') != NULL)
             {
                 token = strtok(line, ", ");
@@ -85,14 +81,6 @@ void print_content_from_file(int *file_contents)
 
 void write_logfile(char *text_to_write)
 {
-    // FILE *fptr;
-    // fptr = fopen("log.txt", "a");
-    if (fptr == NULL)
-    {
-        perror("Error opening file.\n");
-        exit(1);
-    }
-
     int hours, minutes, seconds;
     time_t now = time(NULL);
 
@@ -105,8 +93,6 @@ void write_logfile(char *text_to_write)
     printf("%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
     fprintf(fptr, "%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
     sem_post(writing);
-
-    fclose(fptr);
 }
 
 void malfunctionManager(void)
@@ -199,12 +185,105 @@ void raceManager()
                 nread = read(fd_named_pipe, buffer, LINESIZE);
                 buffer[nread - 1] = '\0';
 
-                if (strncmp("ADDCAR", buffer, 7) == 0)
+                if (strncmp("ADDCAR", buffer, 6) == 0)
+                {
                     printf("[RACE MANAGER Received \"%s\" command]\n");
+                    /*
+                    char *token = NULL;
+                    char *inner_token = NULL;
+                    token = strtok(buffer, ", ");
+                    inner_token = strtok(token, " ");
+                    */
+                    /*
+                    char team_name;
+                    int car_num, car_speed, car_reliability, read;
+                    float car_consumption;
+                    read = sscanf(buffer, "ADDCAR TEAM: %c, CAR: %d, SPEED: %d, CONSUMPTION: %f, RELIABILITY: %d", &team_name, &car_num, &car_speed, &car_consumption, &car_reliability);
+                    if (read == EOF || read != 5){
+                        char *err_log_str = "WRONG COMMAND => ";
+                        strcat(buffer, err_log_str);
+                        write_logfile(err_log_str);
+                    }
+                    */
+                    char team_name[50];
+                    int car_num, car_speed, car_reliability, read;
+                    float car_consumption;
+
+                    char *token = NULL;
+
+                    // comando separado por vírgula (cada campo)
+                    char fields[5][64];
+
+                    char *err_log_str = "WRONG COMMAND => ";
+                    strcat(buffer, err_log_str);
+
+                    token = strtok(buffer + 7, ", "); // para tirar o ADDCAR
+                    for (int i = 0; i < 5; i++)       // 5 campos
+                    {
+                        if (token == NULL)
+                            write_logfile(err_log_str);
+                        strncpy(fields[i], token, 64);
+                        token = strtok(NULL, ", ");
+                    }
+
+                    for (int i = 0; i < 5; i++)
+                    {
+                        printf("%s\n", fields[i]);
+                    }
+
+                    token = strtok(fields[0], " ");
+                    if (strcmp(token, "TEAM:") == 0)
+                    {
+                        token = strtok(NULL, " ");
+                        strcpy(team_name, token);
+                    }
+                    else
+                        write_logfile(err_log_str);
+
+                    token = strtok(fields[1], " ");
+                    if (strcmp(token, "CAR:") == 0)
+                    {
+                        token = strtok(NULL, " ");
+                        car_num = atoi(token);
+                        // TODO: check for errors and invalid values
+                    }
+                    else
+                        write_logfile(err_log_str);
+
+                    token = strtok(fields[2], " ");
+                    if (strcmp(token, "SPEED:") == 0)
+                    {
+                        token = strtok(NULL, " ");
+                        car_speed = atoi(token);
+                        // TODO: check for errors and invalid values
+                    }
+                    else
+                        write_logfile(err_log_str);
+
+                    token = strtok(fields[3], " ");
+                    if (strcmp(token, "CONSUMPTION:") == 0)
+                    {
+                        token = strtok(NULL, " ");
+                        car_consumption = (float)atof(token);
+                        // TODO: check for errors and invalid values
+                    }
+                    else
+                        write_logfile(err_log_str);
+
+                    token = strtok(fields[4], " ");
+                    if (strcmp(token, "RELIABILITY:") == 0)
+                    {
+                        token = strtok(NULL, " ");
+                        car_reliability = atoi(token);
+                        // TODO: check for errors and invalid values
+                    }
+                    else
+                        write_logfile(err_log_str);
+                }
                 else if (strcmp("START RACE!", buffer) == 0)
-                    printf("[RACE MANAGER received \"%s\" command]\nRace initiated!\n", str);
+                    printf("[RACE MANAGER received \"%s\" command]\nRace initiated!\n", buffer);
                 else
-                    printf("[RACE MANAGER received unknown command]: %s \n", str);
+                    printf("[RACE MANAGER received unknown command]: %s \n", buffer);
             }
         }
     }
@@ -309,27 +388,72 @@ void *carThread(void *array_ids_p)
     cars[array_ids[1]].voltas = 0;
     cars[array_ids[1]].state = CORRIDA;
 
-    // -------------------- CAR RACING -------------------- //
-    // TODO: receber SPEED do named pipe
-    /*while(1){
-        sleep(config->time_units * config);
+    cars[array_ids[1]].speed = <SPEED>;
+    cars[array_ids[1]].consumption = <CONSUMPTION>;
+    cars[array_ids[1]].reliability = <RELIABILITY>;
 
-    }*/
+    // progress == how many sleeps (progresses) are needed for a turn
+    // we consume progress * <CONSUMPTION> liters for a turn
+    int progress = config->turns_number / (cars[array_ids[1]].speed * config->time_units);
 
-    // -------------------- MESSAGE QUEUES -------------------- //
-    // TODO: receber mensagem do Malfunction Manager
+    while (1)
+    {
 
-    // -------------------- ATUALIZA ESTADO -------------------- //
-    // TODO: condições estado 1)Corrida 2)Segurança 3)Box 4)Desistência 5)Terminado
-    // atualiza consoante mensagem ou combustível
-    // se receber mensagem, passa para modo SEGURANÇA
+        // -------------------- CAR RACING -------------------- //
+        switch (*cars[array_ids[1]].state)
+        {
+        case CORRIDA:
+
+            // se atingir combustível suficiente apenas para 4 voltas
+            if (progress * config->turns_number * < CONSUMPTION >> cars[array_ids[1]].combustivel >= progress * 4 * <CONSUMPTION>)
+            {
+                // se faltar 1 progress para acabar a volta e a box estiver free, o carro conclui a volta e entra na box
+                if (config->turn_distance < cars[array_ids[1]].dist_percorrida + progress && team_box[cars[array_ids[1]].id_team].box_state = BOX_FREE)
+                {
+                    cars[array_ids[1]].voltas += 1;
+                    // meter o carro na box
+                }
+            }
+
+            else if (cars[array_ids[1]].combustivel >= progress * 2 * <CONSUMPTION>)
+            {
+                *cars[array_ids[1]].state = SEGURANCA;
+                break;
+            }
+
+            else
+            {
+                sleep(config->time_units * <SPEED>);
+                cars[array_ids[1]].combustivel -= <CONSUMPTION>;
+                break;
+            }
+
+        case SEGURANCA:
+            sleep(config->time_units * (<SPEED> * 0.3));
+            cars[array_ids[1]].combustivel -= <CONSUMPTION> * 0.4;
+            break;
+
+        case BOX:
+            cars[array_ids[1]].dist_percorrida = 0;
+            break;
+
+        case DESISTENCIA:
+            cars[array_ids[1]].combustivel = 0;
+            printf("[%ld] Car #%d thread finished\n", (long)getpid(), cars[array_ids[1]]);
+            pthread_exit(NULL);
+            break;
+
+        case TERMINADO:
+            printf("[%ld] Car #%d thread finished\n", (long)getpid(), cars[array_ids[1]]);
+            pthread_exit(NULL);
+            break;
+        }
+    }
 
     // -------------------- NOTIFICAR POR UNNAMED PIPE -------------------- //
     // TODO: notificar por UNNAMED PIPE:
     // 1) alteração de estado
     // 2) se terminou a corrida (desistência/ganhou/chegou à meta)
-
-    sleep(5);
 
     printf("[%ld] Car #%d thread finished\n", (long)getpid(), cars[array_ids[1]]);
     pthread_exit(NULL);

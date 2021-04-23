@@ -19,7 +19,7 @@ int main()
 
     // -------------------- RESET LOG FILE -------------------- //
 
-    fclose(fopen("log.txt", "w"));
+    // fclose(fopen("log.txt", "w"));
 
     // -------------------- READ CONTENT FROM LOG FILE AND CREATE LOG FILE STRUCT -------------------- //
 
@@ -82,6 +82,13 @@ int main()
         exit(1);
     }
 
+    fptr = fopen("log.txt", "w");
+    if (fptr == NULL)
+    {
+        perror("Error opening log file.\n");
+        exit(1);
+    }
+
     // -------------------- MALFUNCTION MANAGER START -------------------- //
 
     if ((malfunctionManagerPID = fork()) == 0)
@@ -110,6 +117,8 @@ int main()
     sem_unlink("WRITING");
     pthread_cond_destroy(&car_state);
     pthread_exit(NULL);
+
+    fclose(fptr);
 
     shmdt(mem);
     shmctl(shmid, IPC_RMID, NULL);
