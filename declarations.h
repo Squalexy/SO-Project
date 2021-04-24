@@ -65,12 +65,12 @@ typedef struct config_struct_
 
 typedef struct car_struct_
 {
-    int id_team;
+    char team;
+    int num;
     float combustivel;
     float dist_percorrida;
     int voltas;
-    char *state;
-    // from named pipe
+    int state;
     int speed;
     float consumption;
     int reliability;

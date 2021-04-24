@@ -98,13 +98,17 @@ void write_logfile(char *text_to_write)
 void malfunctionManager(void)
 {
     printf("[%ld] Malfunction Manager process working\n", (long)getpid());
-    //while (1)
-    //{
-    sleep(config->T_Avaria * config->time_units);
-    // TODO: aceder a fiabilidade do carro e com base nessa fiabilidade cria uma avaria
-    // for (int i = 0; i < team_box_struct)
-    // TODO: criar avaria
-    //}
+    while (1)
+    {
+        sleep(config->T_Avaria * config->time_units);
+        for (int i = 0; i < config->n_teams * config->max_carros; i++)
+        {
+            if (rand() % 100 > cars[i].reliability)
+            {
+                // TODO: comunica avaria por message queue
+            }
+        }
+    }
     printf("[%ld] Malfunction Manager process finished\n", (long)getpid());
     exit(0);
 }
@@ -152,6 +156,7 @@ void raceManager()
     }
 
     // ----------------------- WORK ----------------------- //
+
     char buffer[LINESIZE];
     int nread;
 
@@ -205,7 +210,7 @@ void raceManager()
                         write_logfile(err_log_str);
                     }
                     */
-                    char team_name[50];
+                    char team_name;
                     int car_num, car_speed, car_reliability, read;
                     float car_consumption;
 
@@ -221,7 +226,10 @@ void raceManager()
                     for (int i = 0; i < 5; i++)       // 5 campos
                     {
                         if (token == NULL)
+                        {
                             write_logfile(err_log_str);
+                            continue;
+                        }
                         strncpy(fields[i], token, 64);
                         token = strtok(NULL, ", ");
                     }
@@ -235,10 +243,13 @@ void raceManager()
                     if (strcmp(token, "TEAM:") == 0)
                     {
                         token = strtok(NULL, " ");
-                        strcpy(team_name, token);
+                        team_name = token[0];
                     }
                     else
+                    {
                         write_logfile(err_log_str);
+                        continue;
+                    }
 
                     token = strtok(fields[1], " ");
                     if (strcmp(token, "CAR:") == 0)
@@ -248,7 +259,10 @@ void raceManager()
                         // TODO: check for errors and invalid values
                     }
                     else
+                    {
                         write_logfile(err_log_str);
+                        continue;
+                    }
 
                     token = strtok(fields[2], " ");
                     if (strcmp(token, "SPEED:") == 0)
@@ -258,7 +272,10 @@ void raceManager()
                         // TODO: check for errors and invalid values
                     }
                     else
+                    {
                         write_logfile(err_log_str);
+                        continue;
+                    }
 
                     token = strtok(fields[3], " ");
                     if (strcmp(token, "CONSUMPTION:") == 0)
@@ -268,7 +285,10 @@ void raceManager()
                         // TODO: check for errors and invalid values
                     }
                     else
+                    {
                         write_logfile(err_log_str);
+                        continue;
+                    }
 
                     token = strtok(fields[4], " ");
                     if (strcmp(token, "RELIABILITY:") == 0)
@@ -278,7 +298,36 @@ void raceManager()
                         // TODO: check for errors and invalid values
                     }
                     else
+                    {
                         write_logfile(err_log_str);
+                        continue;
+                    }
+
+                    // -------------------- CREATE CAR STRUCT -------------------- //
+                    // se o comando e dados forem válidos
+                    // e não exceder o número de carros por equipa
+
+                    // INICIO SINCRONIZACAO!!!
+                    for (int i = 0; i < config->n_teams * config->max_carros; i++)
+                    {
+                        if (cars[i].state < 1 || cars[i].state > 5)
+                        {
+                            cars[i].team = team_name;
+                            cars[i].num = car_num;
+                            cars[i].combustivel = (float)config->fuel_capacity;
+                            cars[i].dist_percorrida = 0.0;
+                            cars[i].voltas = 0;
+                            cars[i].state = CORRIDA;
+                            cars[i].speed = car_speed;
+                            cars[i].consumption = car_consumption;
+                            cars[i].reliability = car_reliability;
+                        }
+                    }
+                    // FIM SINCRONIZACAO!!!
+
+                    char car_text[LINESIZE];
+                    sprintf(car_text, "NEW CAR LOADED => TEAM: %c, CAR: %d, SPEED: %d, CONSUMPTION: %.2f, RELIABILITY: %d", team_name, car_num, car_speed, car_consumption, car_reliability);
+                    write_logfile(car_text);
                 }
                 else if (strcmp("START RACE!", buffer) == 0)
                     printf("[RACE MANAGER received \"%s\" command]\nRace initiated!\n", buffer);
@@ -295,13 +344,14 @@ void raceManager()
         waitpid(teams[i], NULL, 0);
     }
 
+    // corrida acaba e limpa os recursos
     clean_resources(fd_named_pipe, channels);
 
     printf("[%ld] Race Manager process finished\n", (long)getpid());
     exit(0);
 }
 
-void teamManager(int channels_write, int teamID)
+void teamManager(int pipe, int teamID)
 {
     printf("[%ld] Team Manager #%d process working\n", (long)getpid(), teamID);
 
@@ -309,60 +359,55 @@ void teamManager(int channels_write, int teamID)
 
     team_box[teamID].box_state = BOX_FREE;
 
-    // TOOO: numCar a ser alterado por named pipe!
-    int numCar = 2;
-
-    int carID[config->max_carros];
-    pthread_t carThreads[config->max_carros];
-
-    if (numCar > config->max_carros)
-    {
-        write_logfile("NUMBER OF CARS ABOVE THE MAXIMUM ALLOWED");
-        exit(1);
-    }
-
     // -------------------- CREATE CAR THREADS -------------------- //
 
-    for (int i = 0; i < numCar; i++)
+    pthread_t carThreads[config->max_carros];
+    int **my_cars;
+
+    // quando a corrida começa
+    int car_count = 0;
+    for (int i = 0; i < config->n_teams * config->max_carros; i++)
     {
-        carID[i] = (teamID * numCar) + i;
-
-        // create ids to put as car struct info
-        int array_ids[2];
-        array_ids[0] = teamID;
-        array_ids[1] = carID;
-
-        pthread_create(&carThreads[i], NULL, carThread, array_ids);
-        //printf("[%ld] Car #%d thread created\n", (long)getpid(), carID[i]);
-
-        char car_text[LINESIZE];
-
-        sprintf(car_text, "NEW CAR LOADED => TEAM %d, CAR: %02d", teamID, carID[i]);
-        write_logfile(car_text);
-    }
-
-    // -------------------- MANAGE WRITING PIPES -------------------- //
-    // enviar informação do estado do carro para o Race Manager
-
-    while (1)
-    {
-        // if estado qualquer cena
-        write(channels_write, <estado>, sizeof(int));
+        // se é um carro da equipa
+        if (cars[i].team == 65 + teamID)
+        {
+            int argv[2];
+            argv[0] = cars + i;
+            argv[1] = pipe;
+            pthread_create(&carThreads[car_count], NULL, carThread, argv);
+            my_cars[car_count++] = cars + i;
+        }
     }
 
     // -------------------- BOX STATE -------------------- //
 
-    //TODO: aceder ao estado da box
-    /*
-    if
-    */
-
     //TODO: se box livre e carro precisar de ir à box, repara o carro
+    while (1)
+    {
+        /* for (int i = 0; i < len(carros da equipa); i++){
+            
+            if (carros[i].state = SEGURANCA){
+                box_state = RESERVADO;
+            }
+
+            if (carros[i].state = BOX and box_state = FREE){
+                box_state = FULL;
+                sleep(rand % T_box_max - rand % T_box_min);
+                sleep(2 * config->time_units);
+                carros[i].combustivel = config->fuel_capacity;
+                carros[i].state = CORRIDA;
+                box_state = FREE;
+
+
+        }
+        */
+    }
+
     //TODO: reparar o carro: sleep de (T_box_min a T_box_max) + sleep de (2 time units)
 
     // -------------------- WAIT FOR CAR THREADS TO DIE -------------------- //
 
-    for (int i = 0; i < numCar; i++)
+    for (int i = 0; i < car_count; i++)
     {
         pthread_join(carThreads[i], NULL);
     }
@@ -371,82 +416,91 @@ void teamManager(int channels_write, int teamID)
     exit(0);
 }
 
-void *carThread(void *array_ids_p)
+void *carThread(void *array_infos_p)
 {
-    int *array_ids = (int *)array_ids_p;
+    int *array_infos = (int *)array_infos_p;
+
+    car_struct *car = array_infos[0];
+    int team = car->team - 65;
+    int speed = car->speed;
+    float consumption = car->consumption;
+    int reliability = car->reliability;
+
+    int pipe = array_infos[1];
     //int carID = *((int *)carID_p);
 
-    // array_ids[0] = TeamID
-    // array_ids[1] = carID
+    // array_infos[0] = TeamID
+    // array_infos[1] = carID
+    // array_infos[2] = channels_write;
 
-    printf("[%ld] Car #%d thread working\n", (long)getpid(), array_ids[1]);
-
-    // -------------------- CREATE CAR STRUCT -------------------- //
-    cars[array_ids[1]].id_team = array_ids[0];
-    cars[array_ids[1]].combustivel = (float)config->fuel_capacity;
-    cars[array_ids[1]].dist_percorrida = 0;
-    cars[array_ids[1]].voltas = 0;
-    cars[array_ids[1]].state = CORRIDA;
-
-    cars[array_ids[1]].speed = <SPEED>;
-    cars[array_ids[1]].consumption = <CONSUMPTION>;
-    cars[array_ids[1]].reliability = <RELIABILITY>;
+    printf("[%ld] Car #%d thread working\n", (long)getpid(), car->num);
 
     // progress == how many sleeps (progresses) are needed for a turn
     // we consume progress * <CONSUMPTION> liters for a turn
-    int progress = config->turns_number / (cars[array_ids[1]].speed * config->time_units);
+    int progress = config->turns_number / (car->speed * config->time_units);
 
     while (1)
     {
 
         // -------------------- CAR RACING -------------------- //
-        switch (*cars[array_ids[1]].state)
+        switch (car->state)
         {
         case CORRIDA:
 
             // se atingir combustível suficiente apenas para 4 voltas
-            if (progress * config->turns_number * < CONSUMPTION >> cars[array_ids[1]].combustivel >= progress * 4 * <CONSUMPTION>)
+            if (progress * config->turns_number * consumption * car->combustivel >= progress * 4)
             {
                 // se faltar 1 progress para acabar a volta e a box estiver free, o carro conclui a volta e entra na box
-                if (config->turn_distance < cars[array_ids[1]].dist_percorrida + progress && team_box[cars[array_ids[1]].id_team].box_state = BOX_FREE)
+                if (config->turn_distance < car->dist_percorrida + progress && team_box[team].box_state == BOX_FREE)
                 {
-                    cars[array_ids[1]].voltas += 1;
-                    // meter o carro na box
+                    car->voltas += 1;
+                    car->state = BOX;
+                    team_box[team].box_state = BOX_FULL;
+                    team_box[team].car = *cars;
+                    write(pipe, BOX, sizeof(int));
+                    continue;
                 }
             }
 
-            else if (cars[array_ids[1]].combustivel >= progress * 2 * <CONSUMPTION>)
+            // se atingir combustível suficiente apenas para 2 voltas
+            else if (car->combustivel >= progress * 2 * consumption)
             {
-                *cars[array_ids[1]].state = SEGURANCA;
-                break;
+                car->state = SEGURANCA;
+                write(pipe, SEGURANCA, sizeof(int));
+                continue;
             }
 
             else
             {
-                sleep(config->time_units * <SPEED>);
-                cars[array_ids[1]].combustivel -= <CONSUMPTION>;
-                break;
+                sleep(config->time_units * speed);
+                car->combustivel -= consumption;
+                car->dist_percorrida += progress;
+                continue;
             }
 
         case SEGURANCA:
-            sleep(config->time_units * (<SPEED> * 0.3));
-            cars[array_ids[1]].combustivel -= <CONSUMPTION> * 0.4;
-            break;
+
+            speed *= 0.3;
+            consumption = 0.4;
+            sleep(config->time_units * speed);
+            car->combustivel -= consumption;
+            car->dist_percorrida += progress;
+            continue;
 
         case BOX:
-            cars[array_ids[1]].dist_percorrida = 0;
-            break;
+            car->dist_percorrida = 0;
+            cars->speed = 0;
+            cars->consumption = 0;
+            continue;
 
         case DESISTENCIA:
-            cars[array_ids[1]].combustivel = 0;
-            printf("[%ld] Car #%d thread finished\n", (long)getpid(), cars[array_ids[1]]);
+            car->combustivel = 0;
+            printf("[%ld] Car #%d thread finished\n", (long)getpid(), car->num);
             pthread_exit(NULL);
-            break;
 
         case TERMINADO:
-            printf("[%ld] Car #%d thread finished\n", (long)getpid(), cars[array_ids[1]]);
+            printf("[%ld] Car #%d thread finished\n", (long)getpid(), car->num);
             pthread_exit(NULL);
-            break;
         }
     }
 
@@ -455,7 +509,7 @@ void *carThread(void *array_ids_p)
     // 1) alteração de estado
     // 2) se terminou a corrida (desistência/ganhou/chegou à meta)
 
-    printf("[%ld] Car #%d thread finished\n", (long)getpid(), cars[array_ids[1]]);
+    printf("[%ld] Car #%d thread finished\n", (long)getpid(), car->num);
     pthread_exit(NULL);
 }
 
