@@ -420,13 +420,19 @@ void *carThread(void *array_infos_p)
 {
     int *array_infos = (int *)array_infos_p;
 
+    // SYNC
     car_struct *car = array_infos[0];
     int team = car->team - 65;
     int speed = car->speed;
     float consumption = car->consumption;
     int reliability = car->reliability;
 
+    int time_units = config->time_units;
+    int turn_dist = config->turn_distance;
+    // END SYNC
+
     int pipe = array_infos[1];
+
     //int carID = *((int *)carID_p);
 
     // array_infos[0] = TeamID
@@ -441,14 +447,21 @@ void *carThread(void *array_infos_p)
 
     while (1)
     {
-
+        sleep(time_units);
         // -------------------- CAR RACING -------------------- //
         switch (car->state)
         {
         case CORRIDA:
-
+            car->combustivel -= consumption;
+            car->dist_percorrida += speed;
+            
+            // se atingir combustível suficiente apenas para 2 voltas
+            if (car->combustivel <= ((2 * turn_dist * consumption) / speed)){
+                car->state = SEGURANCA;
+                write(pipe, SEGURANCA, sizeof(int));
+            }
             // se atingir combustível suficiente apenas para 4 voltas
-            if (progress * config->turns_number * consumption * car->combustivel >= progress * 4)
+            else if (car->combustivel <= ((4 * turn_dist * consumption) / speed))
             {
                 // se faltar 1 progress para acabar a volta e a box estiver free, o carro conclui a volta e entra na box
                 if (config->turn_distance < car->dist_percorrida + progress && team_box[team].box_state == BOX_FREE)
@@ -461,22 +474,7 @@ void *carThread(void *array_infos_p)
                     continue;
                 }
             }
-
-            // se atingir combustível suficiente apenas para 2 voltas
-            else if (car->combustivel >= progress * 2 * consumption)
-            {
-                car->state = SEGURANCA;
-                write(pipe, SEGURANCA, sizeof(int));
-                continue;
-            }
-
-            else
-            {
-                sleep(config->time_units * speed);
-                car->combustivel -= consumption;
-                car->dist_percorrida += progress;
-                continue;
-            }
+            continue;
 
         case SEGURANCA:
 
