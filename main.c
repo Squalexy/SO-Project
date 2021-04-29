@@ -58,6 +58,8 @@ int main()
     cars = (car_struct *)(mem + sizeof(config_struct));
     team_box = (team_box_struct *)(mem + sizeof(config_struct) + config->max_carros * config->n_teams * sizeof(car_struct));
 
+    team_count = 0;
+
     // -------------------- CREATE NAMED PIPE -------------------- //
 
     unlink(PIPE_NAME);
@@ -65,6 +67,15 @@ int main()
     {
         perror("Cannot create pipe!\n");
         exit(1);
+    }
+
+    // -------------------- CREATE MESSAGE QUEUE -------------------- //
+
+    mqid = mssget(IPC_PRIVATE, IPC_CREAT | 0777);
+    if (mqid < 0)
+    {
+        perror("Creating message queue");
+        exit(0);
     }
 
     // -------------------- SIMULATOR START -------------------- //

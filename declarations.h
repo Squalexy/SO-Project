@@ -22,6 +22,7 @@
 
 #define ARRAYSIZE 9
 #define LINESIZE 100
+#define TEAM_NAME_SIZE 50
 
 // box states
 #define BOX_FREE 0
@@ -43,10 +44,12 @@
 char log_text[LINESIZE];
 
 int shmid;
+int mqid;
 pid_t raceManagerPID, malfunctionManagerPID;
 sem_t *writing;
 
 FILE *fptr;
+int team_count;
 
 // ------------------ structures of shared memory ------------------ //
 
@@ -65,7 +68,7 @@ typedef struct config_struct_
 
 typedef struct car_struct_
 {
-    char team;
+    char team[TEAM_NAME_SIZE];
     int num;
     float combustivel;
     float dist_percorrida;
@@ -78,9 +81,16 @@ typedef struct car_struct_
 
 typedef struct team_box_struct_
 {
+    char name[TEAM_NAME_SIZE];
     int box_state;
-    car_struct car;
+    car_struct car; // is it necessary?
 } team_box_struct;
+
+typedef struct
+{
+  long car_id;
+} msg;
+
 
 config_struct *config;
 car_struct *cars;

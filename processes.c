@@ -5,111 +5,28 @@ Projeto realizado por:
 */
 
 #include "declarations.h"
-#include <string.h>
-
-int *read_content_from_file()
-{
-    FILE *fptr;
-    char line[LINESIZE];
-    char *token = NULL;
-
-    int *file_contents = (int *)malloc(ARRAYSIZE * sizeof(int));
-
-    if ((fptr = fopen("config.txt", "r")) == NULL)
-    {
-        write_logfile("ERROR OPENING FILE");
-        exit(1);
-    }
-
-    for (int i = 0; i < ARRAYSIZE; i++)
-    {
-        if (fgets(line, LINESIZE, fptr) != NULL)
-        {
-            if (strchr(line, ',') != NULL)
-            {
-                token = strtok(line, ", ");
-                file_contents[i] = atoi(token);
-                i++;
-                token = strtok(NULL, ", ");
-                file_contents[i] = atoi(token);
-            }
-            else
-            {
-                token = strtok(line, ", ");
-                file_contents[i] = atoi(token);
-            }
-        }
-    }
-
-    if (file_contents[3] < 3)
-    {
-        // perror("Error opening file. Number of teams below 3.\n");
-        write_logfile("ERROR OPENING FILE, NUMBER");
-        exit(1);
-    }
-
-    fclose(fptr);
-    return file_contents;
-}
-
-void print_content_from_file(int *file_contents)
-{
-    printf("--- CONTENT FROM FILE ---\n");
-    for (int i = 0; i < ARRAYSIZE; i++)
-    {
-        if (i == 0)
-            printf("TIME UNITS : %d\n", file_contents[i]);
-        else if (i == 1)
-            printf("TURN DISTANCE : %d\n", file_contents[i]);
-        else if (i == 2)
-            printf("TURNS NUMBER : %d\n", file_contents[i]);
-        else if (i == 3)
-            printf("TEAMS NUMBER : %d\n", file_contents[i]);
-        else if (i == 4)
-            printf("CARS LIMIT : %d\n", file_contents[i]);
-        else if (i == 5)
-            printf("T_AVARIA : %d\n", file_contents[i]);
-        else if (i == 6)
-            printf("T_BOX_MIN : %d\n", file_contents[i]);
-        else if (i == 7)
-            printf("T_BOX_MAX : %d\n", file_contents[i]);
-        else if (i == 8)
-            printf("FUEL CAPACITY : %d\n", file_contents[i]);
-    }
-    printf("\n");
-}
-
-void write_logfile(char *text_to_write)
-{
-    int hours, minutes, seconds;
-    time_t now = time(NULL);
-
-    struct tm *local = localtime(&now);
-    hours = local->tm_hour;
-    minutes = local->tm_min;
-    seconds = local->tm_sec;
-
-    sem_wait(writing);
-    printf("%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
-    fprintf(fptr, "%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
-    sem_post(writing);
-}
 
 void malfunctionManager(void)
 {
-    printf("[%ld] Malfunction Manager process working\n", (long)getpid());
+    msg msg_to_send;
+    printf("---------------------\n[%ld] Malfunction Manager process working\n---------------------\n", (long)getpid());
     while (1)
     {
         sleep(config->T_Avaria * config->time_units);
         for (int i = 0; i < config->n_teams * config->max_carros; i++)
         {
-            if (rand() % 100 > cars[i].reliability)
+            if (rand() % 101 > cars[i].reliability)
             {
-                // TODO: comunica avaria por message queue
+                msg_to_send.car_id = cars[i].num;
+                if (msgsnd(mqid, &msg_to_send, sizeof(msg), msg_to_send.car_id) < 0)
+                {
+                    write_logfile("ERROR SENDING MESSAGE TO MSQ");
+                    exit(0);
+                }
             }
         }
     }
-    printf("[%ld] Malfunction Manager process finished\n", (long)getpid());
+    printf("---------------------\n[%ld] Malfunction Manager process finished\n---------------------\n", (long)getpid());
     exit(0);
 }
 
@@ -134,25 +51,6 @@ void raceManager()
     {
         perror("Cannot open pipe for read-write\n");
         exit(1);
-    }
-
-    // -------------------- CREATE TEAMS -------------------- //
-
-    for (int i = 0; i < n_teams; i++)
-    {
-        pid_t teamPID;
-        if ((teamPID = fork()) == 0)
-        {
-            close(channels[i][0]);
-            teamManager(channels[i][1], i);
-        }
-        else if (teamPID == -1)
-        {
-            write_logfile("ERROR CREATING TEAM MANAGER PROCESS");
-            exit(1);
-        }
-        teams[i] = teamPID; // teams[ID_1, ID_2, ID_3,...]
-        close(channels[i][1]);
     }
 
     // ----------------------- WORK ----------------------- //
@@ -193,24 +91,8 @@ void raceManager()
                 if (strncmp("ADDCAR", buffer, 6) == 0)
                 {
                     printf("[RACE MANAGER Received \"%s\" command]\n");
-                    /*
-                    char *token = NULL;
-                    char *inner_token = NULL;
-                    token = strtok(buffer, ", ");
-                    inner_token = strtok(token, " ");
-                    */
-                    /*
-                    char team_name;
-                    int car_num, car_speed, car_reliability, read;
-                    float car_consumption;
-                    read = sscanf(buffer, "ADDCAR TEAM: %c, CAR: %d, SPEED: %d, CONSUMPTION: %f, RELIABILITY: %d", &team_name, &car_num, &car_speed, &car_consumption, &car_reliability);
-                    if (read == EOF || read != 5){
-                        char *err_log_str = "WRONG COMMAND => ";
-                        strcat(buffer, err_log_str);
-                        write_logfile(err_log_str);
-                    }
-                    */
-                    char team_name;
+
+                    char team_name[TEAM_NAME_SIZE];
                     int car_num, car_speed, car_reliability, read;
                     float car_consumption;
 
@@ -243,7 +125,7 @@ void raceManager()
                     if (strcmp(token, "TEAM:") == 0)
                     {
                         token = strtok(NULL, " ");
-                        team_name = token[0];
+                        strncpy(team_name, token, TEAM_NAME_SIZE);
                     }
                     else
                     {
@@ -303,6 +185,21 @@ void raceManager()
                         continue;
                     }
 
+                    // verificar se a equipa já existe
+                    int i;
+                    for (int i = 0; i < team_count; i++)
+                    {
+                        if (strcmp(team_name, team_box[i].name) == 0)
+                            break;
+                    }
+
+                    // não encontrou a equipa => vai criá-la
+                    if (i >= team_count)
+                    {
+                        strncpy(team_box[team_count].name, team_name, TEAM_NAME_SIZE);
+                        team_box[team_count].box_state = 0;
+                    }
+
                     // -------------------- CREATE CAR STRUCT -------------------- //
                     // se o comando e dados forem válidos
                     // e não exceder o número de carros por equipa
@@ -312,7 +209,7 @@ void raceManager()
                     {
                         if (cars[i].state < 1 || cars[i].state > 5)
                         {
-                            cars[i].team = team_name;
+                            strncpy(cars[i].team, team_name, TEAM_NAME_SIZE);
                             cars[i].num = car_num;
                             cars[i].combustivel = (float)config->fuel_capacity;
                             cars[i].dist_percorrida = 0.0;
@@ -326,15 +223,39 @@ void raceManager()
                     // FIM SINCRONIZACAO!!!
 
                     char car_text[LINESIZE];
-                    sprintf(car_text, "NEW CAR LOADED => TEAM: %c, CAR: %d, SPEED: %d, CONSUMPTION: %.2f, RELIABILITY: %d", team_name, car_num, car_speed, car_consumption, car_reliability);
+                    sprintf(car_text, "NEW CAR LOADED => TEAM: %s, CAR: %d, SPEED: %d, CONSUMPTION: %.2f, RELIABILITY: %d", team_name, car_num, car_speed, car_consumption, car_reliability);
                     write_logfile(car_text);
                 }
                 else if (strcmp("START RACE!", buffer) == 0)
+                {
+                    // verificar se team_count == n_teams
+                    // verificar se todas as equipas têm pelo menos um carro
                     printf("[RACE MANAGER received \"%s\" command]\nRace initiated!\n", buffer);
+                    break;
+                }
                 else
                     printf("[RACE MANAGER received unknown command]: %s \n", buffer);
             }
         }
+    }
+
+    // -------------------- CREATE TEAMS -------------------- //
+
+    for (int i = 0; i < team_count; i++)
+    {
+        pid_t teamPID;
+        if ((teamPID = fork()) == 0)
+        {
+            close(channels[i][0]);
+            teamManager(channels[i][1], i);
+        }
+        else if (teamPID == -1)
+        {
+            write_logfile("ERROR CREATING TEAM MANAGER PROCESS");
+            exit(1);
+        }
+        teams[i] = teamPID; // teams[ID_1, ID_2, ID_3,...]
+        close(channels[i][1]);
     }
 
     // -------------------- WAIT FOR TEAMS -------------------- //
@@ -347,13 +268,13 @@ void raceManager()
     // corrida acaba e limpa os recursos
     clean_resources(fd_named_pipe, channels);
 
-    printf("[%ld] Race Manager process finished\n", (long)getpid());
+    printf("---------------------\n[%ld] Race Manager process finished\n---------------------\n", (long)getpid());
     exit(0);
 }
 
 void teamManager(int pipe, int teamID)
 {
-    printf("[%ld] Team Manager #%d process working\n", (long)getpid(), teamID);
+    printf("---------------------\n[%ld] Team Manager #%d process working\n---------------------\n", (long)getpid(), teamID);
 
     // -------------------- CREATE BOX -------------------- //
 
@@ -369,7 +290,7 @@ void teamManager(int pipe, int teamID)
     for (int i = 0; i < config->n_teams * config->max_carros; i++)
     {
         // se é um carro da equipa
-        if (cars[i].team == 65 + teamID)
+        if (strcmp(cars[i].team, team_box[teamID].name) == 0)
         {
             int argv[2];
             argv[0] = cars + i;
@@ -412,16 +333,23 @@ void teamManager(int pipe, int teamID)
         pthread_join(carThreads[i], NULL);
     }
 
-    printf("[%ld] Team Manager #%d process finished\n", (long)getpid(), teamID);
+    printf("---------------------\n[%ld] Team Manager #%d process finished\n---------------------\n", (long)getpid(), teamID);
     exit(0);
 }
 
 void *carThread(void *array_infos_p)
 {
+    msg received_msg;
+
     int *array_infos = (int *)array_infos_p;
 
     car_struct *car = array_infos[0];
-    int team = car->team - 65;
+    int team;
+    for (team = 0; team < team_count; team++)
+    {
+        if (strcmp(car->team, team_box[team].name) == 0)
+            break;
+    }
     int speed = car->speed;
     float consumption = car->consumption;
     int reliability = car->reliability;
@@ -433,7 +361,7 @@ void *carThread(void *array_infos_p)
     // array_infos[1] = carID
     // array_infos[2] = channels_write;
 
-    printf("[%ld] Car #%d thread working\n", (long)getpid(), car->num);
+    printf("------------\n[%ld] Car #%d thread working\n------------\n", (long)getpid(), car->num);
 
     // progress == how many sleeps (progresses) are needed for a turn
     // we consume progress * <CONSUMPTION> liters for a turn
@@ -441,6 +369,19 @@ void *carThread(void *array_infos_p)
 
     while (1)
     {
+
+        // -------------------- MALFUNCTION MESSAGE FROM MSQ -------------------- //
+
+        if (msgrcv(mqid, &received_msg, sizeof(msg), car->num, 0) < 0)
+        {
+            write_logfile("ERROR RECEIVING MESSAGE FROM MSQ");
+            exit(0);
+        }
+        else
+        {
+            car->state = SEGURANCA;
+            write(pipe, SEGURANCA, sizeof(int));
+        }
 
         // -------------------- CAR RACING -------------------- //
         switch (car->state)
@@ -479,7 +420,6 @@ void *carThread(void *array_infos_p)
             }
 
         case SEGURANCA:
-
             speed *= 0.3;
             consumption = 0.4;
             sleep(config->time_units * speed);
@@ -492,59 +432,28 @@ void *carThread(void *array_infos_p)
             cars->speed = 0;
             cars->consumption = 0;
             continue;
-
-        case DESISTENCIA:
-            car->combustivel = 0;
-            printf("[%ld] Car #%d thread finished\n", (long)getpid(), car->num);
-            pthread_exit(NULL);
-
-        case TERMINADO:
-            printf("[%ld] Car #%d thread finished\n", (long)getpid(), car->num);
-            pthread_exit(NULL);
         }
-    }
 
-    // -------------------- NOTIFICAR POR UNNAMED PIPE -------------------- //
-    // TODO: notificar por UNNAMED PIPE:
-    // 1) alteração de estado
-    // 2) se terminou a corrida (desistência/ganhou/chegou à meta)
-
-    printf("[%ld] Car #%d thread finished\n", (long)getpid(), car->num);
-    pthread_exit(NULL);
-}
-
-void clean_resources(int fd_named_pipe, int **channels)
-{ // cleans all resources including closing of files
-    close(fd_named_pipe);
-    for (int i = 0; i < config->n_teams; i++)
-    {
-        close(channels[i][0]);
-        close(channels[i][1]);
-    }
-    unlink(PIPE_NAME);
-}
-
-void sigtstp(int signum)
-{
-    // -------------------- PRINT STATISTICS -------------------- //
-
-    //TODO: open statistics file
-
-    exit(0);
-}
-
-void sigint(int signum)
-{
-    signal(SIGINT, SIG_IGN);
-    for (int i = 0; i < config->n_teams * config->max_carros; i++)
-    {
-
-        // carros na box terminam
-        if (cars[i].state == BOX)
+        if (car->combustivel < 0)
         {
-            cars[i].state = TERMINADO;
+            car->state = DESISTENCIA;
+            char desistencia[LINESIZE];
+            sprintf(desistencia, "CAR %d ABANDONED THE RACE!\n", car->num);
+            write_logfile(desistencia);
+            write(pipe, DESISTENCIA, sizeof(int));
+            pthread_exit(NULL);
         }
 
-        // TODO: carros em corrida continuam
+        if (car->voltas == config->turns_number)
+        {
+            char fim_volta[LINESIZE];
+            sprintf(fim_volta, "CAR %d FINISHED THE RACE!\n", car->num);
+            write_logfile(fim_volta);
+            write(pipe, TERMINADO, sizeof(int));
+            pthread_exit(NULL);
+        }
     }
+
+    printf("------------\n[%ld] Car #%d thread finished\n------------\n", (long)getpid(), car->num);
+    pthread_exit(NULL);
 }
