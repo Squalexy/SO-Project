@@ -36,6 +36,9 @@
 #define DESISTENCIA 4
 #define TERMINADO 5
 
+#define WORKING 0
+#define MALFUNCTION 1
+
 // named pipe
 #define PIPE_NAME "np_race_manager"
 
@@ -66,10 +69,18 @@ typedef struct config_struct_
     int fuel_capacity;
 } config_struct;
 
+typedef struct race_state_struct
+{
+    int race_started;
+    pthread_mutex_t mutex;
+    pthread_cond_t cv_race_started;
+} race_state;
+
 typedef struct car_struct_
 {
     char team[TEAM_NAME_SIZE];
     int num;
+    int avaria;
     float combustivel;
     float dist_percorrida;
     int voltas;
@@ -83,16 +94,15 @@ typedef struct team_box_struct_
 {
     char name[TEAM_NAME_SIZE];
     int box_state;
-    car_struct car; // is it necessary?
 } team_box_struct;
 
 typedef struct
 {
-  long car_id;
+    long car_id;
 } msg;
 
-
 config_struct *config;
+race_state *race;
 car_struct *cars;
 team_box_struct *team_box;
 

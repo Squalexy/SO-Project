@@ -16,7 +16,7 @@ int main()
 
     // variable conditions
     pthread_cond_t car_state = PTHREAD_COND_INITIALIZER;
-
+    
     // -------------------- RESET LOG FILE -------------------- //
 
     // fclose(fopen("log.txt", "w"));
@@ -55,10 +55,32 @@ int main()
     }
 
     config = (config_struct *)mem;
-    cars = (car_struct *)(mem + sizeof(config_struct));
-    team_box = (team_box_struct *)(mem + sizeof(config_struct) + config->max_carros * config->n_teams * sizeof(car_struct));
+    race = (race_state *)(mem + sizeof(config_struct));
+    cars = (car_struct *)(mem + sizeof(config_struct) + sizeof(race_state));
+    team_box = (team_box_struct *)(mem + sizeof(config_struct) + sizeof(race_state) + config->max_carros * config->n_teams * sizeof(car_struct));
 
     team_count = 0;
+
+    // Condition variable //
+
+    pthread_mutexattr_t attrmutex;
+    pthread_condattr_t attrcondv;
+
+    /* Initialize attribute of mutex. */
+    pthread_mutexattr_init(&attrmutex);
+    pthread_mutexattr_setpshared(&attrmutex, PTHREAD_PROCESS_SHARED);
+
+    /* Initialize attribute of condition variable. */
+    pthread_condattr_init(&attrcondv);
+    pthread_condattr_setpshared(&attrcondv, PTHREAD_PROCESS_SHARED);
+
+    /* Initialize mutex. */
+    pthread_mutex_init(&race->mutex, &attrmutex);
+
+    /* Initialize condition variable. */
+    pthread_cond_init(&race->cv_race_started, &attrcondv);
+
+    race->race_started = 0;
 
     // -------------------- CREATE NAMED PIPE -------------------- //
 

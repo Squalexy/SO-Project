@@ -84,12 +84,23 @@ void raceManager()
 
             if (FD_ISSET(fd_named_pipe, &read_set))
             {
+                // reject if race already started
+                pthread_mutex_lock(&race->mutex);
+                if (&race->race_started)
+                {
+                    printf("[RACE MANAGER received \"%s\" command]\nRejected, race already started!\n", buffer);
+                    pthread_mutex_unlock(&race->mutex);
+                    continue;
+                }
+                pthread_mutex_unlock(&race->mutex);
+
                 // if from named pipe check and do command
                 nread = read(fd_named_pipe, buffer, LINESIZE);
                 buffer[nread - 1] = '\0';
 
                 if (strncmp("ADDCAR", buffer, 6) == 0)
                 {
+
                     printf("[RACE MANAGER Received \"%s\" command]\n");
 
                     char team_name[TEAM_NAME_SIZE];
@@ -212,6 +223,7 @@ void raceManager()
                             strncpy(cars[i].team, team_name, TEAM_NAME_SIZE);
                             cars[i].num = car_num;
                             cars[i].combustivel = (float)config->fuel_capacity;
+                            cars[i].avaria = WORKING;
                             cars[i].dist_percorrida = 0.0;
                             cars[i].voltas = 0;
                             cars[i].state = CORRIDA;
@@ -230,8 +242,15 @@ void raceManager()
                 {
                     // verificar se team_count == n_teams
                     // verificar se todas as equipas têm pelo menos um carro
-                    printf("[RACE MANAGER received \"%s\" command]\nRace initiated!\n", buffer);
-                    break;
+
+                    pthread_mutex_lock(&race->mutex);
+                    if (!(&race->race_started))
+                    {
+                        printf("[RACE MANAGER received \"%s\" command]\nRace initiated!\n", buffer);
+                        race->race_started = 1;
+                        pthread_cond_broadcast(&race->cv_race_started);
+                    }
+                    pthread_mutex_unlock(&race->mutex);
                 }
                 else
                     printf("[RACE MANAGER received unknown command]: %s \n", buffer);
@@ -305,23 +324,34 @@ void teamManager(int pipe, int teamID)
     //TODO: se box livre e carro precisar de ir à box, repara o carro
     while (1)
     {
-        /* for (int i = 0; i < len(carros da equipa); i++){
-            
-            if (carros[i].state = SEGURANCA){
-                box_state = RESERVADO;
+        for (int i = 0; i < len(cars); i++)
+        {
+
+            // !!!! PSEUDO CODIGO -> falta dizer que carro vou abastecer
+            if (team_box[teamID].box_state == BOX_FULL)
+            {
+                sleep(rand() % config->T_Box_Max - rand() % config->T_Box_min + 1);
+                sleep(2 * config->time_units);
+                cars[i].combustivel = config->fuel_capacity;
+                cars[i].state = CORRIDA;
+                team_box[teamID].box_state = BOX_FREE;
+            }
+            // !!!!
+
+            int progress = config->turns_number / (cars[i].speed * config->time_units);
+
+            if (cars[i].state == SEGURANCA && team_box[teamID].box_state == BOX_FREE)
+            {
+                team_box[teamID].box_state = BOX_RESERVED;
             }
 
-            if (carros[i].state = BOX and box_state = FREE){
-                box_state = FULL;
-                sleep(rand % T_box_max - rand % T_box_min);
-                sleep(2 * config->time_units);
-                carros[i].combustivel = config->fuel_capacity;
-                carros[i].state = CORRIDA;
-                box_state = FREE;
-
-
+            // se box estiver reservada e carro[SEGURANÇA] estiver a chegar à meta, entra na box
+            if (team_box[teamID].box_state = BOX_RESERVED && config->turn_distance < cars[i].dist_percorrida + progress)
+            {
+                team_box[teamID].box_state = BOX_FULL;
+                cars[i].state = BOX;
+            }
         }
-        */
     }
 
     //TODO: reparar o carro: sleep de (T_box_min a T_box_max) + sleep de (2 time units)
@@ -357,54 +387,54 @@ void *carThread(void *array_infos_p)
     int pipe = array_infos[1];
     //int carID = *((int *)carID_p);
 
-    // array_infos[0] = TeamID
-    // array_infos[1] = carID
-    // array_infos[2] = channels_write;
+    // array_infos[0] = TeamID    array_infos[1] = carID    array_infos[2] = channels_write;
 
     printf("------------\n[%ld] Car #%d thread working\n------------\n", (long)getpid(), car->num);
 
-    // progress == how many sleeps (progresses) are needed for a turn
-    // we consume progress * <CONSUMPTION> liters for a turn
+    /* progress == how many sleeps (progresses) are needed for a turn
+           we consume progress * <CONSUMPTION> liters for a turn*/
     int progress = config->turns_number / (car->speed * config->time_units);
 
+    // -------------------- CAR RACING -------------------- //
     while (1)
     {
 
-        // -------------------- MALFUNCTION MESSAGE FROM MSQ -------------------- //
-
-        if (msgrcv(mqid, &received_msg, sizeof(msg), car->num, 0) < 0)
-        {
-            write_logfile("ERROR RECEIVING MESSAGE FROM MSQ");
-            exit(0);
-        }
-        else
-        {
-            car->state = SEGURANCA;
-            write(pipe, SEGURANCA, sizeof(int));
-        }
-
-        // -------------------- CAR RACING -------------------- //
         switch (car->state)
         {
+
         case CORRIDA:
 
-            // se atingir combustível suficiente apenas para 4 voltas
-            if (progress * config->turns_number * consumption * car->combustivel >= progress * 4)
+            // -------------------- MALFUNCTION MESSAGE FROM MSQ -------------------- //
+
+            if (msgrcv(mqid, &received_msg, sizeof(msg), car->num, 0) < 0)
             {
-                // se faltar 1 progress para acabar a volta e a box estiver free, o carro conclui a volta e entra na box
+                write_logfile("ERROR RECEIVING MESSAGE FROM MSQ");
+                exit(0);
+            }
+            else
+            {
+                car->state = SEGURANCA;
+                write(pipe, SEGURANCA, sizeof(int));
+            }
+
+            /* 1ª condição: se atingir combustível suficiente apenas para 4 voltas
+                   2ª condição: se faltar menos de 4 voltas para acabar a corrida, ignora*/
+            if (progress * config->turns_number * consumption * car->combustivel >= progress * 4 && car->voltas + 4 < config->turns_number)
+            {
+                // se carro estiver a chegar ao ponto de partida, conclui a volta e entra na box
                 if (config->turn_distance < car->dist_percorrida + progress && team_box[team].box_state == BOX_FREE)
                 {
                     car->voltas += 1;
                     car->state = BOX;
                     team_box[team].box_state = BOX_FULL;
-                    team_box[team].car = *cars;
                     write(pipe, BOX, sizeof(int));
                     continue;
                 }
             }
 
-            // se atingir combustível suficiente apenas para 2 voltas
-            else if (car->combustivel >= progress * 2 * consumption)
+            /* se atingir combustível suficiente apenas para 2 voltas e se não lhe faltar uma volta para acabar a corrida
+                   condição para assegurar que o carro não vai para a box quando podia muito bem acabar a corrida */
+            else if (car->combustivel >= progress * 2 * consumption && car->voltas + 1 < config->turns_number)
             {
                 car->state = SEGURANCA;
                 write(pipe, SEGURANCA, sizeof(int));
@@ -434,6 +464,15 @@ void *carThread(void *array_infos_p)
             continue;
         }
 
+        if (car->voltas == config->turns_number)
+        {
+            char fim_volta[LINESIZE];
+            sprintf(fim_volta, "CAR %d FINISHED THE RACE!\n", car->num);
+            write_logfile(fim_volta);
+            write(pipe, TERMINADO, sizeof(int));
+            pthread_exit(NULL);
+        }
+
         if (car->combustivel < 0)
         {
             car->state = DESISTENCIA;
@@ -441,15 +480,6 @@ void *carThread(void *array_infos_p)
             sprintf(desistencia, "CAR %d ABANDONED THE RACE!\n", car->num);
             write_logfile(desistencia);
             write(pipe, DESISTENCIA, sizeof(int));
-            pthread_exit(NULL);
-        }
-
-        if (car->voltas == config->turns_number)
-        {
-            char fim_volta[LINESIZE];
-            sprintf(fim_volta, "CAR %d FINISHED THE RACE!\n", car->num);
-            write_logfile(fim_volta);
-            write(pipe, TERMINADO, sizeof(int));
             pthread_exit(NULL);
         }
     }
