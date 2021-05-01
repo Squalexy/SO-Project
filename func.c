@@ -124,6 +124,10 @@ void clean_resources(int fd_named_pipe, int **channels)
     }
     unlink(PIPE_NAME);
 
+    // cond_v
+    pthread_cond_destroy(&cond_box_free);
+    pthread_cond_destroy(&cond_box_full);
+
     // remove MSQ
     msgctl(mqid, IPC_RMID, 0);
 

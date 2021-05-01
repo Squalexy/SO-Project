@@ -49,10 +49,14 @@ char log_text[LINESIZE];
 int shmid;
 int mqid;
 pid_t raceManagerPID, malfunctionManagerPID;
-sem_t *writing;
+sem_t *writing, *car_write, *team_read;
 
 FILE *fptr;
-int team_count;
+
+// condition variables
+pthread_mutex_t mutex_box;
+pthread_cond_t cond_box_full;
+pthread_cond_t cond_box_free;
 
 // ------------------ structures of shared memory ------------------ //
 
@@ -67,12 +71,13 @@ typedef struct config_struct_
     int T_Box_min;
     int T_Box_Max;
     int fuel_capacity;
+    int teams_reading;
 } config_struct;
 
 typedef struct race_state_struct
 {
     int race_started;
-    pthread_mutex_t mutex;
+    pthread_mutex_t race_mutex;
     pthread_cond_t cv_race_started;
 } race_state;
 
@@ -93,6 +98,7 @@ typedef struct car_struct_
 typedef struct team_box_struct_
 {
     char name[TEAM_NAME_SIZE];
+    int car_id;
     int box_state;
 } team_box_struct;
 
