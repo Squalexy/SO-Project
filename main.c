@@ -8,23 +8,34 @@ Projeto realizado por:
 
 int main()
 {
-    // -------------------- CREATE SEMAPHORES -------------------- //
+    // -------------------- CREATE NAMED SEMAPHORES -------------------- //
 
     sem_unlink("WRITING");
     writing = sem_open("WRITING", O_CREAT | O_EXCL, 0700, 1);
 
-    // variable conditions
-    pthread_cond_t car_state = PTHREAD_COND_INITIALIZER;
+    // -------------------- CREATE MUTEX SEMAPHORES -------------------- //
+
+    mutex_box = PTHREAD_MUTEX_INITIALIZER;
+    mutex_car_state_box = PTHREAD_MUTEX_INITIALIZER;
+
+    // -------------------- CONDITION VARIABLES -------------------- //
+
+    pthread_mutexattr_t attrmutex;
+    pthread_condattr_t attrcondv;
+
+    cond_box_full = PTHREAD_COND_INITIALIZER;
+    cond_box_free = PTHREAD_COND_INITIALIZER;
+    car_state = PTHREAD_COND_INITIALIZER;
 
     // -------------------- RESET LOG FILE -------------------- //
 
-    // fclose(fopen("log.txt", "w"));
+    fclose(fopen("log.txt", "w"));
 
     // -------------------- CREATE SHARED MEMORY -------------------- //
 
     char *mem;
 
-    if ((shmid = shmget(IPC_PRIVATE, sizeof(config_struct) + sizeof(car_struct) * config->max_carros * config->n_teams + sizeof(team_box_struct) * config->n_teams, IPC_CREAT | 0766)) < 0)
+    if ((shmid = shmget(IPC_PRIVATE, sizeof(config_struct) + sizeof(car_struct) * config->max_carros * config->n_teams + sizeof(team_box_struct) * config->n_teams + sizeof(race_state), IPC_CREAT | 0766)) < 0)
     {
         perror("shmget error!\n");
         exit(1);
@@ -57,19 +68,6 @@ int main()
     // -------------------- PRINT CONTENT FROM LOG FILE -------------------- //
 
     print_content_from_file(file_contents);
-
-    // -------------------- CREATE MUTEX SEMAPHORES -------------------- //
-
-    mutex_box = PTHREAD_MUTEX_INITIALIZER;
-    mutex_car_state_box = PTHREAD_MUTEX_INITIALIZER;
-
-    // -------------------- CONDITION VARIABLES -------------------- //
-
-    pthread_mutexattr_t attrmutex;
-    pthread_condattr_t attrcondv;
-
-    cond_box_full = PTHREAD_COND_INITIALIZER;
-    cond_box_free = PTHREAD_COND_INITIALIZER;
 
     /* Initialize attribute of race_mutex. */
     pthread_mutexattr_init(&attrmutex);
@@ -124,8 +122,8 @@ int main()
         exit(1);
     }
 
-    fptr = fopen("log.txt", "w");
-    if (fptr == NULL)
+    log = fopen("log.txt", "w");
+    if (log == NULL)
     {
         perror("Error opening log file.\n");
         exit(1);
@@ -150,6 +148,7 @@ int main()
     waitpid(malfunctionManagerPID, 0, 0);
 
     write_logfile("SIMULATOR CLOSING");
+    clean_resources();
 
     // close named pipe
     unlink(PIPE_NAME);

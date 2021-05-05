@@ -51,13 +51,15 @@ int mqid;
 pid_t raceManagerPID, malfunctionManagerPID;
 sem_t *writing;
 
-FILE *fptr;
+// log file
+FILE *log;
 
 // mutex semaphores
 pthread_mutex_t mutex_box;
 pthread_mutex_t mutex_car_state_box;
 
 // condition variables
+pthread_cond_t car_state;
 pthread_cond_t cond_box_full;
 pthread_cond_t cond_box_free;
 
@@ -108,15 +110,17 @@ typedef struct team_box_struct_
     int box_state;
 } team_box_struct;
 
-typedef struct
-{
-    long car_id;
-} msg;
-
 config_struct *config;
 race_state *race;
 car_struct *cars;
 team_box_struct *team_box;
+
+// ------------------ other structures ------------------ //
+
+typedef struct
+{
+    long car_id;
+} msg;
 
 // ------------------ functions ------------------ //
 

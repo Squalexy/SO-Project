@@ -369,8 +369,11 @@ void teamManager(int pipe, int teamID)
         }
 
         team_box[teamID].box_state == BOX_FULL;
-        sleep(rand() % config->T_Box_Max - rand() % config->T_Box_min + 1); // repara o carro
-        sleep(2 * config->time_units);                                      // abastece
+        if (cars[team_box[teamID].car_id].avaria == MALFUNCTION)
+        {
+            sleep(rand() % config->T_Box_Max - rand() % config->T_Box_min + 1); // repara o carro
+        }
+        sleep(2 * config->time_units); // abastece
         cars[team_box[teamID].car_id].combustivel = config->fuel_capacity;
         cars[team_box[teamID].car_id].state = CORRIDA;
         team_box[teamID].box_state = BOX_FREE;
@@ -440,6 +443,7 @@ void *carThread(void *array_infos_p)
             else
             {
                 car->state = SEGURANCA;
+                car->avaria = MALFUNCTION;
                 write(pipe, SEGURANCA, sizeof(int));
             }
 

@@ -84,7 +84,7 @@ void write_logfile(char *text_to_write)
 
     sem_wait(writing);
     printf("%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
-    fprintf(fptr, "%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
+    fprintf(log, "%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
     sem_post(writing);
 }
 
@@ -115,8 +115,21 @@ void sigint(int signum)
 
 void clean_resources(int fd_named_pipe, int **channels)
 {
-    // kill processes
-    
+    // log file
+    fclose(log);
+
+    // shared memory
+    if (shmid >= 0)
+    {
+        shdmt(mem);
+        shmctl(shmid, IPC_RMID, NULL);
+    }
+
+    // processes
+    for (int i = 0; i < config->n_teams; i++)
+    {
+        kill(teams[i], SIGKILL);
+    }
 
     // close pipes
     close(fd_named_pipe);
