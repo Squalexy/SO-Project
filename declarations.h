@@ -49,12 +49,15 @@ char log_text[LINESIZE];
 int shmid;
 int mqid;
 pid_t raceManagerPID, malfunctionManagerPID;
-sem_t *writing, *car_write, *team_read;
+sem_t *writing;
 
 FILE *fptr;
 
-// condition variables
+// mutex semaphores
 pthread_mutex_t mutex_box;
+pthread_mutex_t mutex_car_state_box;
+
+// condition variables
 pthread_cond_t cond_box_full;
 pthread_cond_t cond_box_free;
 
@@ -71,14 +74,17 @@ typedef struct config_struct_
     int T_Box_min;
     int T_Box_Max;
     int fuel_capacity;
-    int teams_reading;
 } config_struct;
 
 typedef struct race_state_struct
 {
     int race_started;
+    int teams_reading;
+    int car_count;
     pthread_mutex_t race_mutex;
     pthread_cond_t cv_race_started;
+    pthread_cond_t cv_allow_pipe;
+    pthread_cond_t cv_allow_teams;
 } race_state;
 
 typedef struct car_struct_

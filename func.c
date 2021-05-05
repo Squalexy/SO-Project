@@ -115,6 +115,9 @@ void sigint(int signum)
 
 void clean_resources(int fd_named_pipe, int **channels)
 {
+    // kill processes
+    
+
     // close pipes
     close(fd_named_pipe);
     for (int i = 0; i < config->n_teams; i++)

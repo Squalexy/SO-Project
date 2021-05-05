@@ -13,15 +13,9 @@ int main()
     sem_unlink("WRITING");
     writing = sem_open("WRITING", O_CREAT | O_EXCL, 0700, 1);
 
-    sem_unlink("CAR_WRITE");
-    car_write = sem_open("CAR_WRITE", O_CREAT | O_EXCL, 0700, 1);
-    
-    sem_unlink("TEAM_READ");
-    team_read = sem_open("TEAM_READ", O_CREAT | O_EXCL, 0700, 1);
-
     // variable conditions
     pthread_cond_t car_state = PTHREAD_COND_INITIALIZER;
-    
+
     // -------------------- RESET LOG FILE -------------------- //
 
     // fclose(fopen("log.txt", "w"));
@@ -43,7 +37,6 @@ int main()
     }
 
     config = (config_struct *)mem;
-    config->teams_reading = 0;
     race = (race_state *)(mem + sizeof(config_struct));
     cars = (car_struct *)(mem + sizeof(config_struct) + sizeof(race_state));
     team_box = (team_box_struct *)(mem + sizeof(config_struct) + sizeof(race_state) + config->max_carros * config->n_teams * sizeof(car_struct));
@@ -65,12 +58,16 @@ int main()
 
     print_content_from_file(file_contents);
 
+    // -------------------- CREATE MUTEX SEMAPHORES -------------------- //
+
+    mutex_box = PTHREAD_MUTEX_INITIALIZER;
+    mutex_car_state_box = PTHREAD_MUTEX_INITIALIZER;
+
     // -------------------- CONDITION VARIABLES -------------------- //
 
     pthread_mutexattr_t attrmutex;
     pthread_condattr_t attrcondv;
 
-    mutex_box = PTHREAD_MUTEX_INITIALIZER;
     cond_box_full = PTHREAD_COND_INITIALIZER;
     cond_box_free = PTHREAD_COND_INITIALIZER;
 
@@ -85,10 +82,14 @@ int main()
     /* Initialize race_mutex. */
     pthread_mutex_init(&race->race_mutex, &attrmutex);
 
-    /* Initialize condition variable. */
+    /* Initialize condition variables. */
     pthread_cond_init(&race->cv_race_started, &attrcondv);
+    pthread_cond_init(&race->cv_allow_pipe, &attrcondv);
+    pthread_cond_init(&race->cv_allow_teams, &attrcondv);
 
     race->race_started = 0;
+    race->teams_reading = 0;
+    race->car_count = 0;
 
     // -------------------- CREATE NAMED PIPE -------------------- //
 
@@ -156,14 +157,15 @@ int main()
     // clean up semaphores
     sem_close(writing);
     sem_unlink("WRITING");
-    sem_close(car_write);
-    sem_unlink("CAR_WRITE");
-    sem_close(team_read);
-    sem_unlink("TEAM_READ");
 
     pthread_cond_destroy(&car_state);
     pthread_cond_destroy(&race->cv_race_started);
-    pthread_exit(NULL);
+    pthread_cond_destroy(&race->cv_allow_pipe);
+    pthread_cond_destroy(&race->cv_allow_teams);
+    pthread_mutex_destroy(&race->race_mutex);
+    pthread_mutexattr_destroy(&attrmutex);
+    pthread_condattr_destroy(&attrcondv);
+    //pthread_exit(NULL);
 
     fclose(fptr);
 
