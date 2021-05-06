@@ -113,41 +113,42 @@ void sigint(int signum)
     }
 }
 
-void clean_resources(int fd_named_pipe, int **channels)
+void clean_resources()
 {
     // log file
     fclose(log);
 
     // shared memory
-    if (shmid >= 0)
+    shmdt(mem);
+    shmctl(shmid, IPC_RMID, NULL);
+
+    // close named semaphores
+    sem_close(writing);
+    sem_unlink("WRITING");
+
+    // destroy all semaphores and CVs
+    pthread_cond_destroy(&race->cv_race_started);
+    pthread_cond_destroy(&race->cv_allow_pipe);
+    pthread_cond_destroy(&race->cv_allow_teams);
+    pthread_mutex_destroy(&race->race_mutex);
+    pthread_mutexattr_destroy(&attrmutex);
+    pthread_condattr_destroy(&attrcondv);
+
+    for (int i = 0; i < all_teams; i++)
     {
-        shdmt(mem);
-        shmctl(shmid, IPC_RMID, NULL);
+        pthread_mutex_destroy(&all_teams[i].mutex_box);
+        pthread_mutex_destroy(&all_teams[i].mutex_car_state_box);
+        pthread_cond_destroy(&all_teams[i].cond_box_free);
+        pthread_cond_destroy(&all_teams[i].cond_box_full);
     }
 
-    // processes
-    for (int i = 0; i < config->n_teams; i++)
-    {
-        kill(teams[i], SIGKILL);
-    }
-
-    // close pipes
-    close(fd_named_pipe);
-    for (int i = 0; i < config->n_teams; i++)
-    {
-        close(channels[i][0]);
-        close(channels[i][1]);
-    }
-    unlink(PIPE_NAME);
-
-    // cond_v
-    pthread_cond_destroy(&cond_box_free);
-    pthread_cond_destroy(&cond_box_full);
+    // Guarantees that every process receives a SIGTERM , to kill them
+    kill(0, SIGTERM);
+    while (wait(NULL) != -1)
+        ;
 
     // remove MSQ
     msgctl(mqid, IPC_RMID, 0);
 
-    // Guarantees that every process receives a SIGTERM , to kill them
-    kill(0, SIGTERM);
     exit(0);
 }

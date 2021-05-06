@@ -13,6 +13,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
+#include <sys/msg.h>
 #include <semaphore.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -22,7 +23,7 @@
 
 #define ARRAYSIZE 9
 #define LINESIZE 100
-#define TEAM_NAME_SIZE 50
+#define TEAM_NAME_SIZE 64
 
 // box states
 #define BOX_FREE 0
@@ -50,18 +51,13 @@ int shmid;
 int mqid;
 pid_t raceManagerPID, malfunctionManagerPID;
 sem_t *writing;
+char *mem;
+
+pthread_mutexattr_t attrmutex;
+pthread_condattr_t attrcondv;
 
 // log file
 FILE *log;
-
-// mutex semaphores
-pthread_mutex_t mutex_box;
-pthread_mutex_t mutex_car_state_box;
-
-// condition variables
-pthread_cond_t car_state;
-pthread_cond_t cond_box_full;
-pthread_cond_t cond_box_free;
 
 // ------------------ structures of shared memory ------------------ //
 
@@ -103,17 +99,23 @@ typedef struct car_struct_
     int reliability;
 } car_struct;
 
-typedef struct team_box_struct_
+typedef struct team_struct_
 {
     char name[TEAM_NAME_SIZE];
     int car_id;
     int box_state;
-} team_box_struct;
+    // mutex semaphores
+    pthread_mutex_t mutex_box;
+    pthread_mutex_t mutex_car_state_box;
+    // condition variables
+    pthread_cond_t cond_box_full;
+    pthread_cond_t cond_box_free;
+} team_struct;
 
 config_struct *config;
 race_state *race;
 car_struct *cars;
-team_box_struct *team_box;
+team_struct *all_teams;
 
 // ------------------ other structures ------------------ //
 
