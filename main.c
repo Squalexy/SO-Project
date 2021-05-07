@@ -60,11 +60,11 @@ int main(){
 
     /* Initialize condition variables. */
     pthread_cond_init(&race->cv_race_started, &attrcondv);
-    pthread_cond_init(&race->cv_allow_pipe, &attrcondv);
+    pthread_cond_init(&race->cv_allow_start, &attrcondv);
     pthread_cond_init(&race->cv_allow_teams, &attrcondv);
 
     race->race_started = 0;
-    race->teams_reading = 0;
+    race->teams_reading = -1;
     race->car_count = 0;
 
     // -------------------- CREATE LOG FILE STRUCT -------------------- //
@@ -127,6 +127,13 @@ int main(){
         write_logfile("ERROR CREATING MALFUNCTION MANAGER PROCESS");
         exit(1);
     }
+
+    // -------------------- CAPTURE SIGNALS -------------------- //
+    signal(SIGINT, SIG_IGN);
+    signal(SIGINT, sigint);
+
+    signal(SIGTSTP, SIG_IGN);
+    signal(SIGTSTP, sigtstp);
 
     // -------------------- SIMULATOR END -------------------- //
 

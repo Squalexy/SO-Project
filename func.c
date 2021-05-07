@@ -90,6 +90,7 @@ void write_logfile(char *text_to_write)
 
 void sigtstp(int signum)
 {
+    signal(SIGTSTP, SIG_IGN);
     // -------------------- PRINT STATISTICS -------------------- //
 
     //TODO: open statistics file
@@ -100,17 +101,21 @@ void sigtstp(int signum)
 void sigint(int signum)
 {
     signal(SIGINT, SIG_IGN);
+
+    // 1) Wait for cars to get to the line AND cars in boxes
     for (int i = 0; i < config->n_teams * config->max_carros; i++)
     {
-
         // carros na box terminam
         if (cars[i].state == BOX)
         {
             cars[i].state = TERMINADO;
         }
-
-        // TODO: carros em corrida continuam
     }
+
+    // 2) Print statistics
+
+    // 3) Clean resources
+    clean_resources();
 }
 
 void clean_resources()
@@ -128,7 +133,7 @@ void clean_resources()
 
     // destroy all semaphores and CVs
     pthread_cond_destroy(&race->cv_race_started);
-    pthread_cond_destroy(&race->cv_allow_pipe);
+    pthread_cond_destroy(&race->cv_allow_start);
     pthread_cond_destroy(&race->cv_allow_teams);
     pthread_mutex_destroy(&race->race_mutex);
     pthread_mutexattr_destroy(&attrmutex);

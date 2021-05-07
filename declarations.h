@@ -76,13 +76,20 @@ typedef struct config_struct_
 
 typedef struct race_state_struct
 {
+    // race state
     int race_started;
     int teams_reading;
     int car_count;
     pthread_mutex_t race_mutex;
     pthread_cond_t cv_race_started;
-    pthread_cond_t cv_allow_pipe;
+    pthread_cond_t cv_allow_start;
     pthread_cond_t cv_allow_teams;
+
+    // statistics
+    int n_avarias;
+    int n_abastecimentos;
+    int n_cars_racing;
+
 } race_state;
 
 typedef struct car_struct_
@@ -97,6 +104,9 @@ typedef struct car_struct_
     int speed;
     float consumption;
     int reliability;
+
+    // statistics 
+    int n_stops_box;
 } car_struct;
 
 typedef struct team_struct_
@@ -124,14 +134,19 @@ typedef struct
     long car_id;
 } msg;
 
-// ------------------ functions ------------------ //
+// ------------------ processes ------------------ //
 
-int *read_content_from_file();
 void malfunctionManager(void);
 void raceManager();
 void *carThread(void *carID_p);
 void teamManager(int channels_write, int teamID);
+
+// ------------------ functions ------------------ //
 void write_logfile(char *text_to_write);
 void print_content_from_file(int *file_contents);
+int *read_content_from_file();
+void sigtstp(int signum);
+void sigint(int signum);
+void clean_resources();
 
 #endif
