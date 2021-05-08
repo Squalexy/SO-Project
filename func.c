@@ -123,10 +123,6 @@ void clean_resources()
     // log file
     fclose(log);
 
-    // shared memory
-    shmdt(mem);
-    shmctl(shmid, IPC_RMID, NULL);
-
     // close named semaphores
     sem_close(writing);
     sem_unlink("WRITING");
@@ -154,6 +150,10 @@ void clean_resources()
 
     // remove MSQ
     msgctl(mqid, IPC_RMID, 0);
+
+    // shared memory
+    shmdt(mem);
+    shmctl(shmid, IPC_RMID, NULL);
 
     exit(0);
 }

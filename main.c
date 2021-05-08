@@ -30,7 +30,7 @@ int main(){
     // -------------------- CREATE SHARED MEMORY -------------------- //
 
 
-    if ((shmid = shmget(IPC_PRIVATE, sizeof(config_struct) + sizeof(race_state) + sizeof(car_struct) * file_contents[4] *  file_contents[3] + sizeof(team_struct) *  file_contents[3], IPC_CREAT | 0766)) < 0)
+    if ((shmid = shmget(IPC_PRIVATE, sizeof(config_struct) + sizeof(race_state) + (sizeof(team_struct) *  file_contents[3]) + (sizeof(car_struct) * file_contents[4] *  file_contents[3]), IPC_CREAT | 0766)) < 0)
     {
         perror("shmget error!\n");
         exit(1);
@@ -44,8 +44,8 @@ int main(){
 
     config = (config_struct *)mem;
     race = (race_state *)(mem + sizeof(config_struct));
-    cars = (car_struct *)(mem + sizeof(config_struct) + sizeof(race_state));
-    all_teams = (team_struct *)(mem + sizeof(config_struct) + sizeof(race_state) + file_contents[4] * file_contents[3] * sizeof(car_struct));
+    all_teams = (team_struct *)(mem + sizeof(config_struct) + sizeof(race_state));
+    cars = (car_struct *)(mem + sizeof(config_struct) + sizeof(race_state) + (sizeof(team_struct) * file_contents[3]));
 
     /* Initialize attribute of race_mutex. */
     pthread_mutexattr_init(&attrmutex);
@@ -64,7 +64,7 @@ int main(){
     pthread_cond_init(&race->cv_allow_teams, &attrcondv);
 
     race->race_started = 0;
-    race->teams_reading = -1;
+    race->threads_created = -1;
     race->car_count = 0;
 
     // -------------------- CREATE LOG FILE STRUCT -------------------- //

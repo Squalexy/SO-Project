@@ -78,7 +78,7 @@ typedef struct race_state_struct
 {
     // race state
     int race_started;
-    int teams_reading;
+    int threads_created;
     int car_count;
     pthread_mutex_t race_mutex;
     pthread_cond_t cv_race_started;
