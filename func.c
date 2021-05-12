@@ -10,7 +10,7 @@ int *read_content_from_file()
 
     if ((fptr = fopen("config.txt", "r")) == NULL)
     {
-        write_logfile("ERROR OPENING FILE");
+        write_logfile("ERROR OPENING CONFIG FILE");
         exit(1);
     }
 
@@ -22,22 +22,42 @@ int *read_content_from_file()
             {
                 token = strtok(line, ", ");
                 file_contents[i] = atoi(token);
+                if (token < 0)
+                {
+                    write_logfile("ERROR READING CONFIG FILE. A NEGATIVE NUMBER WAS INSERETED");
+                    exit(1);
+                }
                 i++;
                 token = strtok(NULL, ", ");
                 file_contents[i] = atoi(token);
+                if (token < 0)
+                {
+                    write_logfile("ERROR READING CONFIG FILE. A NEGATIVE NUMBER WAS INSERETED");
+                    exit(1);
+                }
             }
             else
             {
                 token = strtok(line, ", ");
                 file_contents[i] = atoi(token);
+                if (token < 0)
+                {
+                    write_logfile("ERROR READING CONFIG FILE. A NEGATIVE NUMBER WAS INSERETED");
+                    exit(1);
+                }
             }
         }
     }
 
+    if ((sizeof(file_contents) / sizeof(int)) > 8)
+    {
+        write_logfile("ERROR READING CONFIG FILE. TOO MANY ARGUMENTS");
+        exit(1);
+    }
+
     if (file_contents[3] < 3)
     {
-        // perror("Error opening file. Number of teams below 3.\n");
-        write_logfile("ERROR OPENING FILE, NUMBER");
+        write_logfile("ERROR OPENING CONFIG FILE, NUMBER OF TEAMS BELOW 3");
         exit(1);
     }
 
@@ -90,16 +110,23 @@ void write_logfile(char *text_to_write)
 
 void sigtstp(int signum)
 {
+    write_logfile("SIGNAL SIGSTP RECEIVED");
     signal(SIGTSTP, SIG_IGN);
     // -------------------- PRINT STATISTICS -------------------- //
+    printf("\n*******************************************************\n");
+    //TODO: top 5, ordem decrescente
+    //TODO: carro em último lugar
 
-    //TODO: open statistics file
+    printf("Total de avarias: %d", race->n_avarias);
+    printf("Total de abastecimentos: %d", race->n_abastecimentos);
 
+    printf("\n*******************************************************\n");
     exit(0);
 }
 
 void sigint(int signum)
 {
+    write_logfile("SIGNAL SIGINT RECEIVED");
     signal(SIGINT, SIG_IGN);
 
     // 1) Wait for cars to get to the line AND cars in boxes

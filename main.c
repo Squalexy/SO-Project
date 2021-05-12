@@ -7,7 +7,12 @@ Projeto realizado por:
 #include "declarations.h"
 
 int main(){
+    // -------------------- CREATE NAMED SEMAPHORES -------------------- //
 
+    sem_unlink("WRITING");
+    writing = sem_open("WRITING", O_CREAT | O_EXCL, 0700, 1);
+
+    // open log file
     log = fopen("log.txt", "w");
     if (log == NULL)
     {
@@ -15,13 +20,8 @@ int main(){
         exit(1);
     }
 
-    // -------------------- READ CONTENT FROM LOG FILE -------------------- //
+    // -------------------- READ CONTENT FROM CONFIG FILE -------------------- //
     int *file_contents = read_content_from_file();
-
-    // -------------------- CREATE NAMED SEMAPHORES -------------------- //
-
-    sem_unlink("WRITING");
-    writing = sem_open("WRITING", O_CREAT | O_EXCL, 0700, 1);
 
     // -------------------- RESET LOG FILE -------------------- //
 

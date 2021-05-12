@@ -21,7 +21,7 @@ void malfunctionManager(void)
     printf("---------------------\n[%ld] Malfunction Manager process working\n---------------------\n", (long)getpid());
     while (1)
     {
-        usleep(config->T_Avaria * config->time_units * 1000000);
+        usleep(config->T_Avaria * (1/config->time_units) * 1000000);
         for (int i = 0; i < race->car_count; i++)
         {
             if (rand() % 101 > cars[i].reliability)
@@ -32,6 +32,10 @@ void malfunctionManager(void)
                     write_logfile("ERROR SENDING MESSAGE TO MSQ");
                     exit(0);
                 }
+                
+                char malfunction[LINESIZE];
+                sprintf(malfunction, "SENDING MALFUNCTION TO CAR %d", cars[i].num);
+                write_logfile(malfunction);
             }
         }
     }
@@ -222,7 +226,7 @@ void raceManager()
                     
 
                     //strncpy(cars[car_i].team, team_name, TEAM_NAME_SIZE);
-                    printf("Car %d struct: TEAM %s, AVARIA: %d, COMBUSTÍVEL: %d, d_PERCORRIDA: %d, VOLTAS: %d, STATE: %d, SPEED: %f, CONSUMPTION: %f, RELIABILITY: %d\n", cars[car_i].num, cars[car_i].team, cars[car_i].avaria, cars[car_i].combustivel, cars[car_i].dist_percorrida, cars[car_i].voltas, cars[car_i].state, cars[car_i].speed, cars[car_i].consumption, cars[car_i].reliability);
+                    printf("Car %d struct: TEAM %s, AVARIA: %d, COMBUSTÍVEL: %f, d_PERCORRIDA: %f, VOLTAS: %d, STATE: %d, SPEED: %f, CONSUMPTION: %f, RELIABILITY: %d\n", cars[car_i].num, cars[car_i].team, cars[car_i].avaria, cars[car_i].combustivel, cars[car_i].dist_percorrida, cars[car_i].voltas, cars[car_i].state, cars[car_i].speed, cars[car_i].consumption, cars[car_i].reliability);
 
                     char car_text[LINESIZE];
                     sprintf(car_text, "NEW CAR LOADED => TEAM: %s, CAR: %d, SPEED: %d, CONSUMPTION: %.2f, RELIABILITY: %d", team_name, car_num, car_speed, car_consumption, car_reliability);
@@ -277,7 +281,7 @@ void teamManager(int pipe, int teamID)
     // -------------------- CREATE BOX -------------------- //
 
     all_teams[teamID].box_state = BOX_FREE;
-    all_teams[teamID].car_id = 0;
+    all_teams[teamID].car_id = -1;
 
     // -------------------- CREATE MUTEX SEMAPHORES -------------------- //
 
@@ -311,7 +315,7 @@ void teamManager(int pipe, int teamID)
 
             race->n_cars_racing += 1;
             pthread_create(&carThreads[count], NULL, carThread, argv);
-            my_cars[count++] = argv[0];
+            my_cars[count++] = cars + i;
         }
     }
 
@@ -334,23 +338,28 @@ void teamManager(int pipe, int teamID)
 
         printf("Team %s BOX is working!\n", all_teams[teamID].name);
         // if box is free and there's a car in SEGURANCA state, box becomes RESERVED
+        
         pthread_mutex_lock(&all_teams[teamID].mutex_box);
         for (int i = 0; i < count; i++)
         {
             if (strcmp(cars[i].team, all_teams[teamID].name) == 0 && cars[i].state == SEGURANCA && all_teams[teamID].box_state == BOX_FREE)
             {
                 all_teams[teamID].box_state = BOX_RESERVED;
-                pthread_mutex_unlock(&all_teams[teamID].mutex_box);
+                break;
             }
         }
+        pthread_mutex_unlock(&all_teams[teamID].mutex_box);
 
         // wait for a car to enter the box
         printf("Team %s BOX is waiting to receive cars!\n", all_teams[teamID].name);
         printf("Team %s BOX STATE is %d\n", all_teams[teamID].name, all_teams[teamID].box_state);
-        while (all_teams[teamID].car_id == 0)
+        
+        pthread_mutex_lock(&all_teams[teamID].mutex_box);
+        while (all_teams[teamID].car_id < 0)
         {
             pthread_cond_wait(&all_teams[teamID].cond_box_full, &all_teams[teamID].mutex_box);
         }
+        pthread_mutex_unlock(&all_teams[teamID].mutex_box);
 
         all_teams[teamID].box_state == BOX_FULL;
         printf("\nBox from team %s is handling car %d\n", all_teams[teamID].name, all_teams[teamID].car_id);
@@ -364,12 +373,14 @@ void teamManager(int pipe, int teamID)
         cars[all_teams[teamID].car_id].combustivel = config->fuel_capacity;
 
         // box is free
-        all_teams[teamID].car_id == 0;
-        all_teams[teamID].box_state = BOX_FREE;
-
-        // signal the cars the box is free
         printf("\nBox from team %s has repaired car %d. Bye bye handsome! :)\n", all_teams[teamID].name, all_teams[teamID].car_id);
+        
+        pthread_mutex_lock(&all_teams[teamID].mutex_box);
+        all_teams[teamID].car_id == -1;
+        all_teams[teamID].box_state = BOX_FREE;
+        // signal the cars the box is free
         pthread_cond_signal(&all_teams[teamID].cond_box_free);
+        pthread_mutex_unlock(&all_teams[teamID].mutex_box);
     }
 
     // -------------------- WAIT FOR CAR THREADS TO DIE -------------------- //
@@ -385,11 +396,12 @@ void teamManager(int pipe, int teamID)
 
 void *carThread(void *array_infos_p)
 {
-    char fim_volta[LINESIZE], desistencia[LINESIZE];
+    char fim_volta[LINESIZE], desistencia[LINESIZE], mud_estado[LINESIZE];
     
     msg received_msg;
     int *array_infos = (int *)array_infos_p;
-    car_struct *car = cars + array_infos[0];
+    int car_id = array_infos[0];
+    car_struct *car = cars + car_id;
     int team;
     for (team = 0; team < config->n_teams; team++)
     {
@@ -408,7 +420,7 @@ void *carThread(void *array_infos_p)
     printf("------------\n[%ld] Car #%d thread working\n------------\n", (long)getpid(), car->num);
 
     // -------------------- CAR RACING -------------------- //
-    // block until race starts
+    //! BLOCKS UNTIL RACE STARTS
     pthread_mutex_lock(&race->race_mutex);
     ++(race->threads_created);
     pthread_cond_signal(&race->cv_allow_start);
@@ -453,21 +465,31 @@ void *carThread(void *array_infos_p)
                 write_logfile("ERROR RECEIVING MESSAGE FROM MSQ");
                 exit(0);
             }
+      
             else if (bytes_received > 0)
             {
+                //* MUDA DE ESTADO
                 car->state = SEGURANCA;
                 car->avaria = MALFUNCTION;
                 write(pipe, SEGURANCA, sizeof(int));
+                mud_estado[LINESIZE] = "";
+                sprintf(mud_estado, "NEW MALFUNCTION IN CAR %d AND CHANGED STATE <<CORRIDA>> TO STATE <<SEGURANCA>>\n", car->num);
+                write_logfile(mud_estado);
             }
 
             /* se atingir combustível suficiente apenas para 2 voltas e se não lhe faltar uma volta para acabar a corrida
                     condição para assegurar que o carro não vai para a box quando podia muito bem acabar a corrida */
             //if (car->combustivel <= ((2 * turn_dist * consumption) / speed))
 
+            
             if (car->combustivel <= ((2 * config->turn_distance * consumption) / speed) && car->voltas + 2 < config->turns_number)
             {
+                //* MUDA DE ESTADO
                 car->state = SEGURANCA;
                 write(pipe, SEGURANCA, sizeof(int));
+                mud_estado[LINESIZE] = "";
+                sprintf(mud_estado, "CAR %d CHANGED STATE <<CORRIDA>> TO STATE <<SEGURANCA>>\n", car->num);
+                write_logfile(mud_estado);
             }
 
             /* 1ª condição: se atingir combustível suficiente apenas para 4 voltas
@@ -477,11 +499,16 @@ void *carThread(void *array_infos_p)
                 // se carro estiver a chegar ao ponto de partida, entra na box e conclui a volta
                 if (config->turn_distance < car->dist_percorrida + speed && all_teams[team].box_state == BOX_FREE)
                 {
-                    pthread_mutex_lock(&all_teams[team].mutex_car_state_box);
 
+                    //* MUDA DE ESTADO
+                    pthread_mutex_lock(&all_teams[team].mutex_car_state_box);
                     car->state = BOX;
-                    printf("Car %d is entering the box from team %s\n", car->num, car->team);
-                    all_teams[team].car_id = car->num;
+                    mud_estado[LINESIZE] = "";
+                    sprintf(mud_estado, "CAR %d CHANGED STATE <<CORRIDA>> TO STATE <<BOX>>\n", car->num);
+                    write_logfile(mud_estado);
+
+                    printf("**Car %d is entering the box from team %s**\n", car->num, car->team);
+                    all_teams[team].car_id = car_id;
                     car->n_stops_box += 1;
                     write(pipe, BOX, sizeof(int));
 
@@ -494,12 +521,18 @@ void *carThread(void *array_infos_p)
                         pthread_cond_wait(&all_teams[team].cond_box_free, &all_teams[team].mutex_box);
                     }
                     pthread_mutex_unlock(&all_teams[team].mutex_box);
+
+                    //* MUDA DE ESTADO
                     car->state = CORRIDA;
+                    mud_estado[LINESIZE] = "";
+                    sprintf(mud_estado, "CAR %d CHANGED STATE <<BOX>> TO STATE <<CORRIDA>>\n", car->num);
+                    write_logfile(mud_estado);
+                    
                     float speed = car->speed;
                     car->voltas += 1;
                     car->dist_percorrida = 0;
                     consumption = car->consumption;
-                    printf("\nCar %d completed a turn!\nNumber of turns: %d\n\n", car->voltas);
+                    printf("\n**Car %d completed a turn!\nNumber of turns: %d**\n\n", car->voltas);
                 }
             }
 
@@ -517,10 +550,15 @@ void *carThread(void *array_infos_p)
             if (all_teams[team].box_state != BOX_FULL && config->turn_distance <= car->dist_percorrida + speed)
             {
                 printf("Entrei na condição\n");
-                pthread_mutex_lock(&all_teams[team].mutex_car_state_box);
 
+                //* MUDA DE ESTADO
+                pthread_mutex_lock(&all_teams[team].mutex_car_state_box);
                 car->state = BOX;
-                all_teams[team].car_id = car->num;
+                mud_estado[LINESIZE] = "";
+                sprintf(mud_estado, "CAR %d CHANGED STATE <<CORRIDA>> TO STATE <<BOX>>\n", car->num);
+                write_logfile(mud_estado);
+
+                all_teams[team].car_id = car_id;
                 write(pipe, BOX, sizeof(int));
 
                 printf("Car %d needs to enter box. Let me iiiin...\n", car->num);
@@ -537,12 +575,17 @@ void *carThread(void *array_infos_p)
                 pthread_mutex_unlock(&all_teams[team].mutex_box);
                 printf("Car %d is out of the box! Yayyy\n", car->num);
 
+                //* MUDA DE ESTADO
                 car->state = CORRIDA;
+                mud_estado[LINESIZE] = "";
+                sprintf(mud_estado, "CAR %d CHANGED STATE <<BOX>> TO STATE <<CORRIDA>>\n", car->num);
+                write_logfile(mud_estado);
+
                 speed = car->speed;
                 car->voltas += 1;
                 car->dist_percorrida = 0;
                 consumption = car->consumption;
-                printf("\nCar %d completed a turn!\nNumber of turns: %d\n\n", car->voltas);
+                printf("\n**Car %d completed a turn!\nNumber of turns: %d**\n\n", car->voltas);
             }
 
             else
@@ -557,7 +600,6 @@ void *carThread(void *array_infos_p)
             break;
 
         case BOX:
-            printf("Car %d state: BOX\n", car->num);
             car->dist_percorrida = 0;
             speed = 0;
             consumption = 0;
