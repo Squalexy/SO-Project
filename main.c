@@ -6,43 +6,31 @@ Projeto realizado por:
 
 #include "declarations.h"
 
-int main()
-{
-    // -------------------- CREATE SEMAPHORES -------------------- //
+int main(){
+    // -------------------- CREATE NAMED SEMAPHORES -------------------- //
 
-    // mutex
     sem_unlink("WRITING");
     writing = sem_open("WRITING", O_CREAT | O_EXCL, 0700, 1);
 
-    // variable conditions
-    pthread_cond_t car_state = PTHREAD_COND_INITIALIZER;
+    // open log file
+    log = fopen("log.txt", "w");
+    if (log == NULL)
+    {
+        perror("Error opening log file.\n");
+        exit(1);
+    }
+
+    // -------------------- READ CONTENT FROM CONFIG FILE -------------------- //
+    int *file_contents = read_content_from_file();
 
     // -------------------- RESET LOG FILE -------------------- //
 
-    // fclose(fopen("log.txt", "w"));
-
-    // -------------------- READ CONTENT FROM LOG FILE AND CREATE LOG FILE STRUCT -------------------- //
-
-    int *file_contents = read_content_from_file();
-    config->time_units = file_contents[0];
-    config->turn_distance = file_contents[1];
-    config->turns_number = file_contents[2];
-    config->n_teams = file_contents[3];
-    config->max_carros = file_contents[4];
-    config->T_Avaria = file_contents[5];
-    config->T_Box_min = file_contents[6];
-    config->T_Box_Max = file_contents[7];
-    config->fuel_capacity = file_contents[8];
-
-    // -------------------- PRINT CONTENT FROM LOG FILE -------------------- //
-
-    print_content_from_file(file_contents);
+    fclose(fopen("log.txt", "w"));
 
     // -------------------- CREATE SHARED MEMORY -------------------- //
 
-    char *mem;
 
-    if ((shmid = shmget(IPC_PRIVATE, sizeof(config_struct) + sizeof(car_struct) * config->max_carros * config->n_teams + sizeof(team_box_struct) * config->n_teams, IPC_CREAT | 0766)) < 0)
+    if ((shmid = shmget(IPC_PRIVATE, sizeof(config_struct) + sizeof(race_state) + (sizeof(team_struct) *  file_contents[3]) + (sizeof(car_struct) * file_contents[4] *  file_contents[3]), IPC_CREAT | 0766)) < 0)
     {
         perror("shmget error!\n");
         exit(1);
@@ -55,8 +43,44 @@ int main()
     }
 
     config = (config_struct *)mem;
-    cars = (car_struct *)(mem + sizeof(config_struct));
-    team_box = (team_box_struct *)(mem + sizeof(config_struct) + config->max_carros * config->n_teams * sizeof(car_struct));
+    race = (race_state *)(mem + sizeof(config_struct));
+    all_teams = (team_struct *)(mem + sizeof(config_struct) + sizeof(race_state));
+    cars = (car_struct *)(mem + sizeof(config_struct) + sizeof(race_state) + (sizeof(team_struct) * file_contents[3]));
+
+    /* Initialize attribute of race_mutex. */
+    pthread_mutexattr_init(&attrmutex);
+    pthread_mutexattr_setpshared(&attrmutex, PTHREAD_PROCESS_SHARED);
+
+    /* Initialize attribute of condition variable. */
+    pthread_condattr_init(&attrcondv);
+    pthread_condattr_setpshared(&attrcondv, PTHREAD_PROCESS_SHARED);
+
+    /* Initialize race_mutex. */
+    pthread_mutex_init(&race->race_mutex, &attrmutex);
+
+    /* Initialize condition variables. */
+    pthread_cond_init(&race->cv_race_started, &attrcondv);
+    pthread_cond_init(&race->cv_allow_start, &attrcondv);
+    pthread_cond_init(&race->cv_allow_teams, &attrcondv);
+
+    race->race_started = 0;
+    race->threads_created = -1;
+    race->car_count = 0;
+
+    // -------------------- CREATE LOG FILE STRUCT -------------------- //
+
+    config->time_units = file_contents[0];
+    config->turn_distance = file_contents[1];
+    config->turns_number = file_contents[2];
+    config->n_teams = file_contents[3];
+    config->max_carros = file_contents[4];
+    config->T_Avaria = file_contents[5];
+    config->T_Box_min = file_contents[6];
+    config->T_Box_Max = file_contents[7];
+    config->fuel_capacity = file_contents[8];
+    
+    // PRINT CONTENT FROM LOG FILE
+    print_content_from_file(file_contents);
 
     // -------------------- CREATE NAMED PIPE -------------------- //
 
@@ -65,6 +89,15 @@ int main()
     {
         perror("Cannot create pipe!\n");
         exit(1);
+    }
+
+    // -------------------- CREATE MESSAGE QUEUE -------------------- //
+
+    mqid = msgget(IPC_PRIVATE, IPC_CREAT | 0777);
+    if (mqid < 0)
+    {
+        perror("Creating message queue");
+        exit(0);
     }
 
     // -------------------- SIMULATOR START -------------------- //
@@ -82,13 +115,6 @@ int main()
         exit(1);
     }
 
-    fptr = fopen("log.txt", "w");
-    if (fptr == NULL)
-    {
-        perror("Error opening log file.\n");
-        exit(1);
-    }
-
     // -------------------- MALFUNCTION MANAGER START -------------------- //
 
     if ((malfunctionManagerPID = fork()) == 0)
@@ -102,6 +128,13 @@ int main()
         exit(1);
     }
 
+    // -------------------- CAPTURE SIGNALS -------------------- //
+    signal(SIGINT, SIG_IGN);
+    signal(SIGINT, sigint);
+
+    signal(SIGTSTP, SIG_IGN);
+    signal(SIGTSTP, sigtstp);
+
     // -------------------- SIMULATOR END -------------------- //
 
     waitpid(raceManagerPID, 0, 0);
@@ -109,16 +142,8 @@ int main()
 
     write_logfile("SIMULATOR CLOSING");
 
-    // close named pipe
     unlink(PIPE_NAME);
-
-    // clean up semaphores
-    sem_close(writing);
-    sem_unlink("WRITING");
-    pthread_cond_destroy(&car_state);
-    pthread_exit(NULL);
-
-    fclose(fptr);
+    clean_resources();
 
     shmdt(mem);
     shmctl(shmid, IPC_RMID, NULL);

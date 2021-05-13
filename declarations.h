@@ -13,6 +13,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
+#include <sys/msg.h>
 #include <semaphore.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -22,6 +23,7 @@
 
 #define ARRAYSIZE 9
 #define LINESIZE 100
+#define TEAM_NAME_SIZE 64
 
 // box states
 #define BOX_FREE 0
@@ -35,6 +37,9 @@
 #define DESISTENCIA 4
 #define TERMINADO 5
 
+#define WORKING 0
+#define MALFUNCTION 1
+
 // named pipe
 #define PIPE_NAME "np_race_manager"
 
@@ -43,10 +48,16 @@
 char log_text[LINESIZE];
 
 int shmid;
+int mqid;
 pid_t raceManagerPID, malfunctionManagerPID;
 sem_t *writing;
+char *mem;
 
-FILE *fptr;
+pthread_mutexattr_t attrmutex;
+pthread_condattr_t attrcondv;
+
+// log file
+FILE *log;
 
 // ------------------ structures of shared memory ------------------ //
 
@@ -63,10 +74,29 @@ typedef struct config_struct_
     int fuel_capacity;
 } config_struct;
 
+typedef struct race_state_struct
+{
+    // race state
+    int race_started;
+    int threads_created;
+    int car_count;
+    pthread_mutex_t race_mutex;
+    pthread_cond_t cv_race_started;
+    pthread_cond_t cv_allow_start;
+    pthread_cond_t cv_allow_teams;
+
+    // statistics
+    int n_avarias;
+    int n_abastecimentos;
+    int n_cars_racing;
+
+} race_state;
+
 typedef struct car_struct_
 {
-    char team;
+    char team[TEAM_NAME_SIZE];
     int num;
+    int avaria;
     float combustivel;
     float dist_percorrida;
     int voltas;
@@ -74,26 +104,49 @@ typedef struct car_struct_
     int speed;
     float consumption;
     int reliability;
+
+    // statistics 
+    int n_stops_box;
 } car_struct;
 
-typedef struct team_box_struct_
+typedef struct team_struct_
 {
+    char name[TEAM_NAME_SIZE];
+    int car_id;
     int box_state;
-    car_struct car;
-} team_box_struct;
+    // mutex semaphores
+    pthread_mutex_t mutex_box;
+    pthread_mutex_t mutex_car_state_box;
+    // condition variables
+    pthread_cond_t cond_box_full;
+    pthread_cond_t cond_box_free;
+} team_struct;
 
 config_struct *config;
+race_state *race;
 car_struct *cars;
-team_box_struct *team_box;
+team_struct *all_teams;
 
-// ------------------ functions ------------------ //
+// ------------------ other structures ------------------ //
 
-int *read_content_from_file();
+typedef struct
+{
+    long car_id;
+} msg;
+
+// ------------------ processes ------------------ //
+
 void malfunctionManager(void);
 void raceManager();
 void *carThread(void *carID_p);
 void teamManager(int channels_write, int teamID);
+
+// ------------------ functions ------------------ //
 void write_logfile(char *text_to_write);
 void print_content_from_file(int *file_contents);
+int *read_content_from_file();
+void sigtstp(int signum);
+void sigint(int signum);
+void clean_resources();
 
 #endif
