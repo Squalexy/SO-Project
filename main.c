@@ -7,6 +7,7 @@ Projeto realizado por:
 #include "declarations.h"
 
 int main(){
+
     // -------------------- CREATE NAMED SEMAPHORES -------------------- //
 
     sem_unlink("WRITING");
@@ -20,12 +21,13 @@ int main(){
         exit(1);
     }
 
+    // -------------------- CREATE MUTEX SEMAPHORES -------------------- //
+
+    classif_mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+
     // -------------------- READ CONTENT FROM CONFIG FILE -------------------- //
+
     int *file_contents = read_content_from_file();
-
-    // -------------------- RESET LOG FILE -------------------- //
-
-    fclose(fopen("log.txt", "w"));
 
     // -------------------- CREATE SHARED MEMORY -------------------- //
 
@@ -66,6 +68,7 @@ int main(){
     race->race_started = 0;
     race->threads_created = -1;
     race->car_count = 0;
+    race->classificacao = 1;
 
     // -------------------- CREATE LOG FILE STRUCT -------------------- //
 
