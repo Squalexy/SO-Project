@@ -22,7 +22,7 @@
 // ------------------ defines ------------------ //
 
 #define ARRAYSIZE 9
-#define LINESIZE 100
+#define LINESIZE 200
 #define TEAM_NAME_SIZE 64
 
 // box states
@@ -55,6 +55,8 @@ char *mem;
 
 pthread_mutexattr_t attrmutex;
 pthread_condattr_t attrcondv;
+
+pthread_mutex_t classif_mutex;
 
 // log file
 FILE *log;
@@ -89,6 +91,7 @@ typedef struct race_state_struct
     int n_avarias;
     int n_abastecimentos;
     int n_cars_racing;
+    int classificacao;
 
 } race_state;
 
@@ -105,8 +108,9 @@ typedef struct car_struct_
     float consumption;
     int reliability;
 
-    // statistics 
+    // statistics
     int n_stops_box;
+    int classificacao;
 } car_struct;
 
 typedef struct team_struct_
@@ -158,5 +162,6 @@ pid_t *teamsPID;
 int fd_named_pipe, count, teamID;
 int **channels;
 pthread_t *carThreads;
+car_struct *sort_classif();
 
 #endif

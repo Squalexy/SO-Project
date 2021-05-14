@@ -6,7 +6,9 @@ Projeto realizado por:
 
 #include "declarations.h"
 
-int main(){
+int main()
+{
+
     // -------------------- CREATE NAMED SEMAPHORES -------------------- //
 
     sem_unlink("WRITING");
@@ -20,17 +22,17 @@ int main(){
         exit(1);
     }
 
+    // -------------------- CREATE MUTEX SEMAPHORES -------------------- //
+
+    classif_mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+
     // -------------------- READ CONTENT FROM CONFIG FILE -------------------- //
+
     int *file_contents = read_content_from_file();
-
-    // -------------------- RESET LOG FILE -------------------- //
-
-    fclose(fopen("log.txt", "w"));
 
     // -------------------- CREATE SHARED MEMORY -------------------- //
 
-
-    if ((shmid = shmget(IPC_PRIVATE, sizeof(config_struct) + sizeof(race_state) + (sizeof(team_struct) *  file_contents[3]) + (sizeof(car_struct) * file_contents[4] *  file_contents[3]), IPC_CREAT | 0766)) < 0)
+    if ((shmid = shmget(IPC_PRIVATE, sizeof(config_struct) + sizeof(race_state) + (sizeof(team_struct) * file_contents[3]) + (sizeof(car_struct) * file_contents[4] * file_contents[3]), IPC_CREAT | 0766)) < 0)
     {
         perror("shmget error!\n");
         exit(1);
@@ -66,6 +68,7 @@ int main(){
     race->race_started = 0;
     race->threads_created = -1;
     race->car_count = 0;
+    race->classificacao = 1;
 
     // -------------------- CREATE LOG FILE STRUCT -------------------- //
 
@@ -78,7 +81,7 @@ int main(){
     config->T_Box_min = file_contents[6];
     config->T_Box_Max = file_contents[7];
     config->fuel_capacity = file_contents[8];
-    
+
     // PRINT CONTENT FROM LOG FILE
     print_content_from_file(file_contents);
 
