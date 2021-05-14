@@ -49,7 +49,7 @@ int *read_content_from_file()
         }
     }
 
-    if ((sizeof(file_contents) / sizeof(int)) > 8)
+    if ((sizeof(file_contents) / sizeof(*file_contents)) > 8)
     {
         write_logfile("ERROR READING CONFIG FILE. TOO MANY ARGUMENTS");
         exit(1);
@@ -105,7 +105,7 @@ void write_logfile(char *text_to_write)
     sem_wait(writing);
     printf("%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
     fprintf(log, "%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
-    ffflush(log);
+    fflush(log);
     sem_post(writing);
 }
 
@@ -114,27 +114,28 @@ void sigtstp(int signum)
     write_logfile("SIGNAL SIGSTP RECEIVED");
     signal(SIGTSTP, SIG_IGN);
 
-    car_struct * final_classification = sort_classif();
+    car_struct *final_classification = sort_classif();
 
     // -------------------- PRINT STATISTICS -------------------- //
 
     printf("\n*******************************************************\n");
     printf("\n::: TOP 5 :::\n");
-    
+
     for (int i = 0; i < 5; i++)
     {
-        print("%d : Car %d", i + 1, final_classification[i].num);
+        if (&final_classification[i] == NULL)
+            break;
+        printf("%d : Car %d\n", i + 1, final_classification[i].num);
     }
-    
-    printf("\n::: LAST PLACE :::\n");
-    printf("%d : Car %d", race->car_count, final_classification[race->car_count - 1].num);
 
-    printf("::: MALFUNCTIONS :::\n%d", race->n_avarias);
-    printf("::: REFUELLINGS :::\n%d", race->n_abastecimentos);
+    printf("\n::: LAST PLACE :::\n");
+    printf("%d : Car %d\n", race->car_count, final_classification[race->car_count - 1].num);
+
+    printf("\n::: MALFUNCTIONS :::\n%d\n", race->n_avarias);
+    printf("\n::: REFUELLINGS :::\n%d\n", race->n_abastecimentos);
 
     printf("\n*******************************************************\n");
     free(final_classification);
-    exit(0);
 }
 
 void sigint(int signum)
@@ -176,7 +177,7 @@ void clean_resources()
     pthread_mutexattr_destroy(&attrmutex);
     pthread_condattr_destroy(&attrcondv);
 
-    for (int i = 0; i < all_teams; i++)
+    for (int i = 0; i < config->n_teams; i++)
     {
         pthread_mutex_destroy(&all_teams[i].mutex_box);
         pthread_mutex_destroy(&all_teams[i].mutex_car_state_box);
@@ -213,8 +214,7 @@ car_struct *sort_classif()
     {
         for (int j = i + 1; j < race->car_count; ++j)
         {
-            if ((classifs[i].voltas < classifs[j].voltas) || (classifs[i].voltas == classifs[j].voltas && classifs[i].dist_percorrida < classifs[j].dist_percorrida) 
-            || classifs[i].classificacao < classifs[j].classificacao)
+            if ((classifs[i].voltas < classifs[j].voltas) || (classifs[i].voltas == classifs[j].voltas && classifs[i].dist_percorrida < classifs[j].dist_percorrida) || classifs[i].classificacao < classifs[j].classificacao)
             {
                 temp = classifs[i];
                 classifs[i] = classifs[j];

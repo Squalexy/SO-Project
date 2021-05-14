@@ -22,7 +22,7 @@
 // ------------------ defines ------------------ //
 
 #define ARRAYSIZE 9
-#define LINESIZE 100
+#define LINESIZE 200
 #define TEAM_NAME_SIZE 64
 
 // box states

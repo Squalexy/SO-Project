@@ -6,7 +6,8 @@ Projeto realizado por:
 
 #include "declarations.h"
 
-int main(){
+int main()
+{
 
     // -------------------- CREATE NAMED SEMAPHORES -------------------- //
 
@@ -31,8 +32,7 @@ int main(){
 
     // -------------------- CREATE SHARED MEMORY -------------------- //
 
-
-    if ((shmid = shmget(IPC_PRIVATE, sizeof(config_struct) + sizeof(race_state) + (sizeof(team_struct) *  file_contents[3]) + (sizeof(car_struct) * file_contents[4] *  file_contents[3]), IPC_CREAT | 0766)) < 0)
+    if ((shmid = shmget(IPC_PRIVATE, sizeof(config_struct) + sizeof(race_state) + (sizeof(team_struct) * file_contents[3]) + (sizeof(car_struct) * file_contents[4] * file_contents[3]), IPC_CREAT | 0766)) < 0)
     {
         perror("shmget error!\n");
         exit(1);
@@ -81,7 +81,7 @@ int main(){
     config->T_Box_min = file_contents[6];
     config->T_Box_Max = file_contents[7];
     config->fuel_capacity = file_contents[8];
-    
+
     // PRINT CONTENT FROM LOG FILE
     print_content_from_file(file_contents);
 
@@ -135,7 +135,6 @@ int main(){
     signal(SIGINT, SIG_IGN);
     signal(SIGINT, sigint);
 
-    signal(SIGTSTP, SIG_IGN);
     signal(SIGTSTP, sigtstp);
 
     // -------------------- SIMULATOR END -------------------- //

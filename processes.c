@@ -20,6 +20,9 @@ void malfunctionManager(void)
         pthread_mutex_unlock(&race->race_mutex);
 
         printf("---------------------\n[%ld] Malfunction Manager process working\n---------------------\n", (long)getpid());
+
+        signal(SIGTSTP, SIG_IGN);
+
         while (1)
         {
             pthread_mutex_lock(&race->race_mutex);
@@ -286,6 +289,8 @@ void raceManager()
         }
     }
 
+    signal(SIGTSTP, SIG_IGN);
+
     // -------------------- WAIT FOR TEAMS -------------------- //
 
     for (int i = 0; i < n_teams; i++)
@@ -314,6 +319,8 @@ void teamManager(int pipe, int teamID)
     // -------------------- CREATE CVs -------------------- //
     all_teams[teamID].cond_box_full = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
     all_teams[teamID].cond_box_free = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
+
+    signal(SIGTSTP, SIG_IGN);
 
     while (1)
     {
@@ -453,6 +460,8 @@ void *carThread(void *array_infos_p)
 
     printf("------------\n[%ld] Car #%d thread working\n------------\n", (long)getpid(), car->num);
 
+    signal(SIGTSTP, SIG_IGN);
+
     // -------------------- CAR RACING -------------------- //
     //! BLOCKS UNTIL RACE STARTS
     pthread_mutex_lock(&race->race_mutex);
@@ -467,7 +476,7 @@ void *carThread(void *array_infos_p)
     while (1)
     {
 
-        printf("Car %d struct: TEAM %s, AVARIA: %d, COMBUSTÍVEL: %f, d_PERCORRIDA: %f, VOLTAS: %d, STATE: %d, SPEED: %f, CONSUMPTION: %f, RELIABILITY: %d\n", car->num, car->team, car->avaria, car->combustivel, car->dist_percorrida, car->voltas, car->state, speed, consumption, car->reliability);
+        // printf("Car %d struct: TEAM %s, AVARIA: %d, COMBUSTÍVEL: %f, d_PERCORRIDA: %f, VOLTAS: %d, STATE: %d, SPEED: %f, CONSUMPTION: %f, RELIABILITY: %d\n", car->num, car->team, car->avaria, car->combustivel, car->dist_percorrida, car->voltas, car->state, speed, consumption, car->reliability);
 
         if (car->dist_percorrida >= config->turn_distance)
         {
