@@ -201,11 +201,17 @@ void sigint_simulator(int signo)
 
     // destroy all semaphores and CVs
     pthread_cond_destroy(&race->cv_race_started);
+    printf("cv_race_started CLOSED [%d]\n", errno);
     pthread_cond_destroy(&race->cv_allow_start);
+    printf("cv_allow_start CLOSED [%d]\n", errno);
     pthread_cond_destroy(&race->cv_allow_teams);
+    printf("cv_allow_teams CLOSED [%d]\n", errno);
     pthread_mutex_destroy(&race->race_mutex);
+    printf("race_mutex CLOSED [%d]\n", errno);
     pthread_mutexattr_destroy(&attrmutex);
+    printf("attrmutex CLOSED [%d]\n", errno);
     pthread_condattr_destroy(&attrcondv);
+    printf("attrcondv CLOSED [%d]\n", errno);
 
     // remove MSQ
     msgctl(mqid, IPC_RMID, 0);
@@ -248,7 +254,7 @@ void sigint_race(int signo)
 void sigint_malfunction(int signo)
 {
     signal(SIGINT, SIG_IGN);
-    write_logfile("MALFUNCTION MANAGER CLEANING");
+    write_logfile("MALFUNCTION MANAGER FINISHED");
     exit(0);
 }
 
@@ -268,9 +274,9 @@ void sigint_team(int signo)
     pthread_mutex_destroy(&all_teams[teamID].mutex_box);
     pthread_mutex_destroy(&all_teams[teamID].mutex_car_state_box);
     pthread_cond_destroy(&all_teams[teamID].cond_box_free);
-    pthread_cond_destroy(&all_teams[teamID].cond_box_full);
+    //pthread_cond_destroy(&all_teams[teamID].cond_box_full);
+    //printf("cond box full CLOSED\n");
 
     printf("[%ld] Team Manager #%d process finished\n", (long)getpid(), teamID);
-
     exit(0);
 }
