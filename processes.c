@@ -56,20 +56,20 @@ void malfunctionManager(void)
 void raceManager()
 {
     int n_teams = config->n_teams;
-    pid_t teams[n_teams];
     race->n_cars_racing = 0;
+    teamsPID = (pid_t*) malloc(sizeof(pid_t) * n_teams);
+    channels = (int **) malloc(sizeof(int*) * n_teams);
 
     // -------------------- CREATE UNNAMED PIPES -------------------- //
 
-    int channels[n_teams][2];
     for (int i = 0; i < n_teams; i++)
     {
+        channels[i] = (int *) malloc(sizeof(int) * 2);
         pipe(channels[i]);
     }
 
     // --------------- OPEN NAMED PIPE FOR READ-WRITE --------------- //
 
-    int fd_named_pipe;
     if ((fd_named_pipe = open(PIPE_NAME, O_RDWR)) < 0)
     {
         perror("Cannot open pipe for read-write\n");
@@ -213,14 +213,15 @@ void raceManager()
                         if ((teamPID = fork()) == 0)
                         {
                             close(channels[team_count][0]);
-                            teamManager(channels[team_count][1], team_count);
+                            teamID = team_count;
+                            teamManager();
                         }
                         else if (teamPID == -1)
                         {
                             write_logfile("ERROR CREATING TEAM MANAGER PROCESS");
                             exit(1);
                         }
-                        teams[team_count] = teamPID; // teams[ID_1, ID_2, ID_3,...]
+                        teamsPID[team_count] = teamPID; // teams[ID_1, ID_2, ID_3,...]
                         close(channels[team_count][1]);
                         team_count++;
                     }
@@ -283,22 +284,14 @@ void raceManager()
             }
         }
     }
-
-    // -------------------- WAIT FOR TEAMS -------------------- //
-
-    for (int i = 0; i < n_teams; i++)
-    {
-        waitpid(teams[i], NULL, 0);
-    }
-
-    close(fd_named_pipe);
-
-    printf("---------------------\n[%ld] Race Manager process finished\n---------------------\n", (long)getpid());
-    exit(0);
 }
 
-void teamManager(int pipe, int teamID)
+void teamManager()
 {
+    int pipe = channels[teamID][1];
+    int *my_cars[config->max_carros];
+    carThreads = (pthread_t *) malloc(sizeof(pthread_t) * config->max_carros);
+
     // -------------------- CREATE BOX -------------------- //
 
     all_teams[teamID].box_state = BOX_FREE;
@@ -317,10 +310,8 @@ void teamManager(int pipe, int teamID)
     while(1){
         printf("---------------------\n[%ld] Team Manager #%d process working\n---------------------\n", (long)getpid(), teamID);
         // -------------------- CREATE CAR THREADS -------------------- //
-
-        pthread_t carThreads[config->max_carros];
-        int *my_cars[config->max_carros];
-        int cars_length, count = 0;
+        int cars_length;
+        count = 0;
 
         pthread_mutex_lock(&race->race_mutex);
         while (race->threads_created < 0)
@@ -413,17 +404,7 @@ void teamManager(int pipe, int teamID)
             pthread_cond_signal(&all_teams[teamID].cond_box_free);
             pthread_mutex_unlock(&all_teams[teamID].mutex_box);
         }
-
-        // -------------------- WAIT FOR CAR THREADS TO DIE -------------------- //
-
-        for (int i = 0; i < count; i++)
-        {
-            pthread_join(carThreads[i], NULL);
-        }
-
-        printf("---------------------\n[%ld] Team Manager #%d process finished\n---------------------\n", (long)getpid(), teamID);
     }
-    exit(0);
 }
 
 void *carThread(void *array_infos_p)

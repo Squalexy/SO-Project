@@ -130,23 +130,17 @@ int main(){
 
     // -------------------- CAPTURE SIGNALS -------------------- //
     signal(SIGINT, SIG_IGN);
-    signal(SIGINT, sigint);
+    signal(SIGINT, sigint_simulator);
 
     signal(SIGTSTP, SIG_IGN);
     signal(SIGTSTP, sigtstp);
 
     // -------------------- SIMULATOR END -------------------- //
 
-    waitpid(raceManagerPID, 0, 0);
-    waitpid(malfunctionManagerPID, 0, 0);
-
     write_logfile("SIMULATOR CLOSING");
 
-    unlink(PIPE_NAME);
-    clean_resources();
+    //clean_resources();
 
-    shmdt(mem);
-    shmctl(shmid, IPC_RMID, NULL);
 
     return 0;
 }

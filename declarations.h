@@ -139,7 +139,7 @@ typedef struct
 void malfunctionManager(void);
 void raceManager();
 void *carThread(void *carID_p);
-void teamManager(int channels_write, int teamID);
+void teamManager();
 
 // ------------------ functions ------------------ //
 void write_logfile(char *text_to_write);
@@ -148,5 +148,15 @@ int *read_content_from_file();
 void sigtstp(int signum);
 void sigint(int signum);
 void clean_resources();
+void sigint_simulator(int signo);
+void sigint_race(int signo);
+void sigint_malfunction(int signo);
+void sigint_team(int signo);
+
+// other
+pid_t *teamsPID;
+int fd_named_pipe, count, teamID;
+int **channels;
+pthread_t *carThreads;
 
 #endif
