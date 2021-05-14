@@ -106,6 +106,7 @@ int main(){
     {
         // printf("[%ld] Race Manager process created\n", (long)getpid());
         write_logfile("SIMULATOR STARTING");
+        signal(SIGINT, sigint_race);
         raceManager();
     }
     else if (raceManagerPID == -1)
@@ -119,6 +120,7 @@ int main(){
 
     if ((malfunctionManagerPID = fork()) == 0)
     {
+        signal(SIGINT, sigint_malfunction);
         malfunctionManager();
     }
     else if (malfunctionManagerPID == -1)
@@ -129,10 +131,7 @@ int main(){
     }
 
     // -------------------- CAPTURE SIGNALS -------------------- //
-    signal(SIGINT, SIG_IGN);
     signal(SIGINT, sigint_simulator);
-
-    signal(SIGTSTP, SIG_IGN);
     signal(SIGTSTP, sigtstp);
 
     // -------------------- SIMULATOR END -------------------- //

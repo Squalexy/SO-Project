@@ -212,6 +212,7 @@ void raceManager()
                         pid_t teamPID;
                         if ((teamPID = fork()) == 0)
                         {
+                            signal(SIGINT, sigint_team);
                             close(channels[team_count][0]);
                             teamID = team_count;
                             teamManager();
