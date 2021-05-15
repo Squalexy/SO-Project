@@ -292,7 +292,7 @@ void raceManager()
 
 void teamManager()
 {
-	int pipe = channels[teamID][1];
+	//int pipe = channels[teamID][1];
     //car_IDs = (int *) malloc(sizeof(int) * config->max_carros);
     int car_IDs[config->max_carros];
     carThreads = (pthread_t *) malloc(sizeof(pthread_t) * config->max_carros);
