@@ -177,6 +177,7 @@ void clean_resources()
     pthread_mutexattr_destroy(&attrmutex);
     pthread_condattr_destroy(&attrcondv);
 
+    /*
     for (int i = 0; i < config->n_teams; i++)
     {
         pthread_mutex_destroy(&all_teams[i].mutex_box);
@@ -184,7 +185,7 @@ void clean_resources()
         pthread_cond_destroy(&all_teams[i].cond_box_free);
         pthread_cond_destroy(&all_teams[i].cond_box_full);
     }
-
+    */
     // Guarantees that every process receives a SIGTERM , to kill them
     kill(0, SIGTERM);
     while (wait(NULL) != -1)
@@ -205,8 +206,8 @@ void sigint_simulator(int signo)
     signal(SIGINT, SIG_IGN);
     write_logfile("SIGNAL SIGINT RECEIVED");
 
+	waitpid(malfunctionManagerPID, 0, 0);
     waitpid(raceManagerPID, 0, 0);
-    waitpid(malfunctionManagerPID, 0, 0);
 
     fclose(log);
 
@@ -219,6 +220,7 @@ void sigint_simulator(int signo)
     pthread_cond_destroy(&race->cv_allow_start);
     pthread_cond_destroy(&race->cv_allow_teams);
     pthread_mutex_destroy(&race->race_mutex);
+    pthread_mutex_destroy(&classif_mutex);
     pthread_mutexattr_destroy(&attrmutex);
     pthread_condattr_destroy(&attrcondv);
 
@@ -237,11 +239,11 @@ void sigint_race(int signo)
 {
     signal(SIGINT, SIG_IGN);
     write_logfile("RACE MANAGER CLEANING");
-    
-    pthread_mutex_lock(&race->race_mutex);
-    race->race_started = 0;
-    pthread_cond_broadcast(&race->cv_race_started);
-    pthread_mutex_unlock(&race->race_mutex);
+
+    //pthread_mutex_lock(&race->race_mutex);
+    //race->race_started = 0;
+    //pthread_cond_broadcast(&race->cv_race_started);
+    //pthread_mutex_unlock(&race->race_mutex);
 
     // WAIT FOR TEAMS
     for (int i = 0; i < config->n_teams; i++)
@@ -256,7 +258,7 @@ void sigint_race(int signo)
     close(fd_named_pipe);
 
     printf("[%ld] Race Manager process finished\n", (long)getpid());
-    
+
     pthread_exit(NULL);
 }
 
@@ -281,11 +283,10 @@ void sigint_team(int signo)
     close(channels[teamID][1]);
     free(carThreads);
 
-    pthread_cond_destroy(&all_teams[teamID].cond_box_free);
-    pthread_cond_destroy(&all_teams[teamID].cond_box_full);
-    pthread_mutex_destroy(&all_teams[teamID].mutex_box);
-    pthread_mutex_destroy(&all_teams[teamID].mutex_car_state_box);
-    
+    pthread_cond_destroy(&cond_box_free);
+    pthread_cond_destroy(&cond_box_full);
+    pthread_mutex_destroy(&mutex_box);
+
     printf("[%ld] Team Manager #%d process finished\n", (long)getpid(), teamID);
     pthread_exit(NULL);
 }

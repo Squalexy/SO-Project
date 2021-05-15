@@ -56,6 +56,10 @@ char *mem;
 pthread_mutexattr_t attrmutex;
 pthread_condattr_t attrcondv;
 
+pthread_mutex_t mutex_box;
+pthread_cond_t cond_box_free;
+pthread_cond_t cond_box_full;
+
 pthread_mutex_t classif_mutex;
 
 // log file
@@ -118,12 +122,14 @@ typedef struct team_struct_
     char name[TEAM_NAME_SIZE];
     int car_id;
     int box_state;
+    int reserved_count;
+    int finished;
     // mutex semaphores
-    pthread_mutex_t mutex_box;
-    pthread_mutex_t mutex_car_state_box;
+    //pthread_mutex_t mutex_box;
+    //pthread_mutex_t mutex_car_state_box;
     // condition variables
-    pthread_cond_t cond_box_full;
-    pthread_cond_t cond_box_free;
+    //pthread_cond_t cond_box_full;
+    //pthread_cond_t cond_box_free;
 } team_struct;
 
 config_struct *config;
@@ -162,6 +168,7 @@ pid_t *teamsPID;
 int fd_named_pipe, count, teamID;
 int **channels;
 pthread_t *carThreads;
+int *car_IDs;
 car_struct *sort_classif();
 
 #endif

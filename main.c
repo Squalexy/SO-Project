@@ -138,7 +138,7 @@ int main()
     signal(SIGTSTP, sigtstp);
 
     // -------------------- SIMULATOR END -------------------- //
-    
+
     waitpid(raceManagerPID, 0, 0);
     waitpid(malfunctionManagerPID, 0, 0);
 

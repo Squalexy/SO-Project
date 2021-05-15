@@ -1,5 +1,5 @@
 CC		= gcc
-FLAGS	= -pthread -D_REENTRANT -Wall -g
+FLAGS	= -pthread -D_REENTRANT -Wall -g -O0
 OBJS	= main.o functions.o processes.o
 PROG	= races
 
