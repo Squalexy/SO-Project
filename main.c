@@ -15,8 +15,8 @@ int main()
     writing = sem_open("WRITING", O_CREAT | O_EXCL, 0700, 1);
 
     // open log file
-    log = fopen("log.txt", "w");
-    if (log == NULL)
+    log_file = fopen("log.txt", "w");
+    if (log_file == NULL)
     {
         perror("Error opening log file.\n");
         exit(1);

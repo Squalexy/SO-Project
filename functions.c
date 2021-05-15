@@ -6,7 +6,7 @@ int *read_content_from_file()
     char line[LINESIZE];
     char *token = NULL;
 
-    int *file_contents = (int *)malloc(ARRAYSIZE * sizeof(int));
+    int *file_contents = malloc(ARRAYSIZE * sizeof(int));
 
     if ((fptr = fopen("config.txt", "r")) == NULL)
     {
@@ -47,12 +47,6 @@ int *read_content_from_file()
                 }
             }
         }
-    }
-
-    if ((sizeof(file_contents) / sizeof(*file_contents)) > 8)
-    {
-        write_logfile("ERROR READING CONFIG FILE. TOO MANY ARGUMENTS");
-        exit(1);
     }
 
     if (file_contents[3] < 3)
@@ -104,44 +98,20 @@ void write_logfile(char *text_to_write)
 
     sem_wait(writing);
     printf("%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
-    fprintf(log, "%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
-    fflush(log);
+    fprintf(log_file, "%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
+    fflush(log_file);
     sem_post(writing);
 }
 
 void sigtstp(int signum)
 {
     write_logfile("SIGNAL SIGSTP RECEIVED");
-    signal(SIGTSTP, SIG_IGN);
-
-    car_struct *final_classification = sort_classif();
-
-    // -------------------- PRINT STATISTICS -------------------- //
-
-    printf("\n*******************************************************\n");
-    printf("\n::: TOP 5 :::\n");
-
-    for (int i = 0; i < 5; i++)
-    {
-        if (&final_classification[i] == NULL)
-            break;
-        printf("%d : Car %d\n", i + 1, final_classification[i].num);
-    }
-
-    printf("\n::: LAST PLACE :::\n");
-    printf("%d : Car %d\n", race->car_count, final_classification[race->car_count - 1].num);
-
-    printf("\n::: MALFUNCTIONS :::\n%d\n", race->n_avarias);
-    printf("\n::: REFUELLINGS :::\n%d\n", race->n_abastecimentos);
-
-    printf("\n*******************************************************\n");
-    free(final_classification);
+    print_statistics();
 }
 
 void sigint(int signum)
 {
     write_logfile("SIGNAL SIGINT RECEIVED");
-    signal(SIGINT, SIG_IGN);
 
     // 1) Wait for cars to get to the line AND cars in boxes
     for (int i = 0; i < config->n_teams * config->max_carros; i++)
@@ -154,6 +124,7 @@ void sigint(int signum)
     }
 
     // 2) Print statistics
+    print_statistics();
 
     // 3) Clean resources
     clean_resources();
@@ -162,7 +133,7 @@ void sigint(int signum)
 void clean_resources()
 {
     // log file
-    fclose(log);
+    fclose(log_file);
 
     // close named semaphores
     sem_close(writing);
@@ -209,7 +180,7 @@ void sigint_simulator(int signo)
 	waitpid(malfunctionManagerPID, 0, 0);
     waitpid(raceManagerPID, 0, 0);
 
-    fclose(log);
+    fclose(log_file);
 
     // close named semaphores
     sem_close(writing);
@@ -305,7 +276,10 @@ car_struct *sort_classif()
     {
         for (int j = i + 1; j < race->car_count; ++j)
         {
-            if ((classifs[i].voltas < classifs[j].voltas) || (classifs[i].voltas == classifs[j].voltas && classifs[i].dist_percorrida < classifs[j].dist_percorrida) || classifs[i].classificacao < classifs[j].classificacao)
+            if (classifs[i].voltas == config->turns_number){
+                continue;
+            }
+            else if ((classifs[i].voltas < classifs[j].voltas) || (classifs[i].voltas == classifs[j].voltas && classifs[i].dist_percorrida < classifs[j].dist_percorrida) || classifs[i].classificacao < classifs[j].classificacao)
             {
                 temp = classifs[i];
                 classifs[i] = classifs[j];
@@ -315,4 +289,28 @@ car_struct *sort_classif()
     }
 
     return classifs;
+}
+
+void print_statistics()
+{
+    car_struct *final_classification = sort_classif();
+
+    printf("\n*******************************************************\n");
+    printf("\n::: TOP 5 :::\n");
+
+    for (int i = 0; i < 5; i++)
+    {
+        if (&final_classification[i] == NULL)
+            break;
+        printf("%d : Car %d\n", i + 1, final_classification[i].num);
+    }
+
+    printf("\n::: LAST PLACE :::\n");
+    printf("%d : Car %d\n", race->car_count, final_classification[race->car_count - 1].num);
+
+    printf("\n::: MALFUNCTIONS :::\n%d\n", race->n_avarias);
+    printf("\n::: REFUELLINGS :::\n%d\n", race->n_abastecimentos);
+
+    printf("\n*******************************************************\n");
+    free(final_classification);
 }

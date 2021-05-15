@@ -22,6 +22,7 @@ void malfunctionManager(void)
         printf("---------------------\n[%ld] Malfunction Manager process working\n---------------------\n", (long)getpid());
 
         signal(SIGTSTP, SIG_IGN);
+        signal(SIGINT, SIG_IGN);
 
         while (1)
         {
@@ -36,7 +37,7 @@ void malfunctionManager(void)
             usleep(config->T_Avaria * (1.0 / (float)config->time_units) * 1000000);
             for (int i = 0; i < race->car_count; i++)
             {
-                if (rand() % 101 > cars[i].reliability)
+                if (rand() % 101 > cars[i].reliability && (cars[i].state == CORRIDA || cars[i].state == SEGURANCA))
                 {
                     msg_to_send.car_id = cars[i].num;
                     if (msgsnd(mqid, &msg_to_send, sizeof(msg_to_send)-sizeof(long), 0) < 0)
@@ -47,6 +48,7 @@ void malfunctionManager(void)
 
                     char malfunction[LINESIZE];
                     sprintf(malfunction, "SENDING MALFUNCTION TO CAR %d", cars[i].num);
+                    race->n_avarias += 1;
                     write_logfile(malfunction);
                 }
             }
@@ -142,7 +144,7 @@ void raceManager()
 
                 if (strncmp("ADDCAR", buffer, 6) == 0)
                 {
-                    printf("[RACE MANAGER Received \"%s\" command]\n");
+                    printf("[RACE MANAGER Received \"%s\" command]\n", buffer);
 
                     char team_name[TEAM_NAME_SIZE];
                     char err_log_str[LINESIZE] = "WRONG COMMAND => ";
@@ -462,6 +464,7 @@ void *carThread(void *id)
     printf("------------\n[%ld] Car #%d thread working\n------------\n", (long)getpid(), car->num);
 
     signal(SIGTSTP, SIG_IGN);
+    signal(SIGINT, SIG_IGN);
 
     // -------------------- CAR RACING -------------------- //
     //! BLOCKS UNTIL RACE STARTS
@@ -516,8 +519,7 @@ void *carThread(void *id)
                 car->state = SEGURANCA;
                 car->avaria = MALFUNCTION;
                 write(pipe, &car->state, sizeof(int));
-                
-                mud_estado[LINESIZE] = "";
+                strcpy(mud_estado, "");
                 sprintf(mud_estado, "NEW MALFUNCTION IN CAR %d AND CHANGED STATE <<CORRIDA>> TO STATE <<SEGURANCA>>\n", car->num);
                 write_logfile(mud_estado);
             }
@@ -536,8 +538,7 @@ void *carThread(void *id)
                 
                 car->state = SEGURANCA;
                 write(pipe, &car->state, sizeof(int));
-                
-                mud_estado[LINESIZE] = "";
+                strcpy(mud_estado, "");
                 sprintf(mud_estado, "CAR %d CHANGED STATE <<CORRIDA>> TO STATE <<SEGURANCA>>\n", car->num);
                 write_logfile(mud_estado);
             }
@@ -657,6 +658,10 @@ void *carThread(void *id)
             sprintf(fim_volta, "CAR %d FINISHED THE RACE!\n", car->num);
             write_logfile(fim_volta);
             write(pipe, &car->state, sizeof(int));
+
+            if(race->n_cars_racing == 0){
+                printf("\n\n\n*******\nEND OF RACE\n*******");
+            }
 
             pthread_mutex_lock(&classif_mutex);
             car->classificacao = race->classificacao;

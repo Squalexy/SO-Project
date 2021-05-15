@@ -63,7 +63,7 @@ pthread_cond_t cond_box_full;
 pthread_mutex_t classif_mutex;
 
 // log file
-FILE *log;
+FILE *log_file;
 
 // ------------------ structures of shared memory ------------------ //
 
@@ -108,7 +108,7 @@ typedef struct car_struct_
     float dist_percorrida;
     int voltas;
     int state;
-    int speed;
+    float speed;
     float consumption;
     int reliability;
 
@@ -120,6 +120,7 @@ typedef struct car_struct_
 typedef struct team_struct_
 {
     char name[TEAM_NAME_SIZE];
+    // box
     int car_id;
     int box_state;
     int reserved_count;
@@ -170,5 +171,6 @@ int **channels;
 pthread_t *carThreads;
 int *car_IDs;
 car_struct *sort_classif();
+void print_statistics();
 
 #endif

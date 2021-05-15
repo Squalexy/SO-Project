@@ -16,7 +16,8 @@
   "settings": {
     "files.associations": {
       "declarations.h": "c",
-      "typeinfo": "c"
+      "typeinfo": "c",
+      "cmath": "c"
     }
   }
 }
