@@ -114,15 +114,15 @@ void raceManager()
 
                     printf("FINISHED: %d\n", finished);
 
-                    if (finished == n_teams)
+					pthread_mutex_lock(&race->race_mutex);
+					if (finished == race->car_count)
                     {
-                        pthread_mutex_lock(&race->race_mutex);
                         race->race_started = 0;
-                        race->threads_created = -1;
-                        finished = 0;
-                        pthread_cond_broadcast(&race->cv_race_started);
-                        pthread_mutex_unlock(&race->race_mutex);
+                    	race->threads_created = -1;
+                    	finished = 0;
+                    	pthread_cond_broadcast(&race->cv_race_started);
                     }
+                    pthread_mutex_unlock(&race->race_mutex);
                 }
             }
 
@@ -479,7 +479,7 @@ void *carThread(void *id)
 
     while (1)
     {
-        printf("Car %d struct: TEAM %s, AVARIA: %d, COMBUSTÍVEL: %f, d_PERCORRIDA: %f, VOLTAS: %d, STATE: %d, SPEED: %f, CONSUMPTION: %f, RELIABILITY: %d\n", car->num, car->team, car->avaria, car->combustivel, car->dist_percorrida, car->voltas, car->state, speed, consumption, car->reliability);
+        //printf("Car %d struct: TEAM %s, AVARIA: %d, COMBUSTÍVEL: %f, d_PERCORRIDA: %f, VOLTAS: %d, STATE: %d, SPEED: %f, CONSUMPTION: %f, RELIABILITY: %d\n", car->num, car->team, car->avaria, car->combustivel, car->dist_percorrida, car->voltas, car->state, speed, consumption, car->reliability);
 
         if (car->dist_percorrida >= config->turn_distance)
         {
