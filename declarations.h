@@ -86,10 +86,14 @@ typedef struct race_state_struct
     int race_started;
     int threads_created;
     int car_count;
+    int team_count;
+    int waiting;
+    int end_sim;
     pthread_mutex_t race_mutex;
     pthread_cond_t cv_race_started;
     pthread_cond_t cv_allow_start;
     pthread_cond_t cv_allow_teams;
+    pthread_cond_t cv_waiting;
 
     // statistics
     int n_avarias;
@@ -172,5 +176,7 @@ pthread_t *carThreads;
 int *car_IDs;
 car_struct *sort_classif();
 void print_statistics();
+
+sigset_t set_all, set_allow;
 
 #endif

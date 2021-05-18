@@ -99,6 +99,7 @@ void write_logfile(char *text_to_write)
     sem_wait(writing);
     printf("%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
     fprintf(log_file, "%02d:%02d:%02d  %s\n", hours, minutes, seconds, text_to_write);
+    fflush(stdout);
     fflush(log_file);
     sem_post(writing);
 }
@@ -109,75 +110,19 @@ void sigtstp(int signum)
     print_statistics();
 }
 
-void sigint(int signum)
-{
-    write_logfile("SIGNAL SIGINT RECEIVED");
-
-    // 1) Wait for cars to get to the line AND cars in boxes
-    for (int i = 0; i < config->n_teams * config->max_carros; i++)
-    {
-        // carros na box terminam
-        if (cars[i].state == BOX)
-        {
-            cars[i].state = TERMINADO;
-        }
-    }
-
-    // 2) Print statistics
-    print_statistics();
-
-    // 3) Clean resources
-    clean_resources();
-}
-
-void clean_resources()
-{
-    // log file
-    fclose(log_file);
-
-    // close named semaphores
-    sem_close(writing);
-    sem_unlink("WRITING");
-
-    // destroy all semaphores and CVs
-    pthread_cond_destroy(&race->cv_race_started);
-    pthread_cond_destroy(&race->cv_allow_start);
-    pthread_cond_destroy(&race->cv_allow_teams);
-    pthread_mutex_destroy(&race->race_mutex);
-    pthread_mutex_destroy(&classif_mutex);
-    pthread_mutexattr_destroy(&attrmutex);
-    pthread_condattr_destroy(&attrcondv);
-
-    /*
-    for (int i = 0; i < config->n_teams; i++)
-    {
-        pthread_mutex_destroy(&all_teams[i].mutex_box);
-        pthread_mutex_destroy(&all_teams[i].mutex_car_state_box);
-        pthread_cond_destroy(&all_teams[i].cond_box_free);
-        pthread_cond_destroy(&all_teams[i].cond_box_full);
-    }
-    */
-    // Guarantees that every process receives a SIGTERM , to kill them
-    kill(0, SIGTERM);
-    while (wait(NULL) != -1)
-        ;
-
-    // remove MSQ
-    msgctl(mqid, IPC_RMID, 0);
-
-    // shared memory
-    shmdt(mem);
-    shmctl(shmid, IPC_RMID, NULL);
-
-    exit(0);
-}
-
 void sigint_simulator(int signo)
 {
     signal(SIGINT, SIG_IGN);
     write_logfile("SIGNAL SIGINT RECEIVED");
 
-	waitpid(malfunctionManagerPID, 0, 0);
+    pthread_mutex_lock(&race->race_mutex);
+    race->race_started = 0;
+    race->threads_created = -1;
+    race->end_sim = 1;
+    pthread_cond_broadcast(&race->cv_race_started);
+    pthread_mutex_unlock(&race->race_mutex);
+
+	  waitpid(malfunctionManagerPID, 0, 0);
     waitpid(raceManagerPID, 0, 0);
 
     fclose(log_file);
@@ -187,13 +132,16 @@ void sigint_simulator(int signo)
     sem_unlink("WRITING");
 
     // destroy all semaphores and CVs
+    pthread_mutexattr_destroy(&attrmutex);
+    pthread_condattr_destroy(&attrcondv);
+
     pthread_cond_destroy(&race->cv_race_started);
     pthread_cond_destroy(&race->cv_allow_start);
     pthread_cond_destroy(&race->cv_allow_teams);
+    pthread_cond_destroy(&race->cv_waiting);
+
     pthread_mutex_destroy(&race->race_mutex);
     pthread_mutex_destroy(&classif_mutex);
-    pthread_mutexattr_destroy(&attrmutex);
-    pthread_condattr_destroy(&attrcondv);
 
     // remove MSQ
     msgctl(mqid, IPC_RMID, 0);
@@ -208,16 +156,22 @@ void sigint_simulator(int signo)
 
 void sigint_race(int signo)
 {
+    int team_count = 0;
     signal(SIGINT, SIG_IGN);
     write_logfile("RACE MANAGER CLEANING");
 
-    //pthread_mutex_lock(&race->race_mutex);
-    //race->race_started = 0;
-    //pthread_cond_broadcast(&race->cv_race_started);
-    //pthread_mutex_unlock(&race->race_mutex);
-
     // WAIT FOR TEAMS
-    for (int i = 0; i < config->n_teams; i++)
+    pthread_mutex_lock(&race->race_mutex);
+    race->end_sim = 1;
+    team_count = race->team_count;
+    while(race->waiting != team_count)
+    {
+        pthread_cond_wait(&race->cv_waiting, &race->race_mutex);
+    }
+    pthread_cond_broadcast(&race->cv_allow_teams);
+    pthread_mutex_unlock(&race->race_mutex);
+
+    for (int i = 0; i < team_count; i++)
     {
         waitpid(teamsPID[i], NULL, 0);
         close(channels[i][0]);
@@ -230,7 +184,7 @@ void sigint_race(int signo)
 
     printf("[%ld] Race Manager process finished\n", (long)getpid());
 
-    pthread_exit(NULL);
+    exit(0);
 }
 
 void sigint_malfunction(int signo)
@@ -238,7 +192,7 @@ void sigint_malfunction(int signo)
     signal(SIGINT, SIG_IGN);
     write_logfile("MALFUNCTION MANAGER CLEANING");
     printf("[%ld] Malfunction Manager process finished\n", (long)getpid());
-    pthread_exit(NULL);
+    exit(0);
 }
 
 void sigint_team(int signo)
@@ -246,11 +200,6 @@ void sigint_team(int signo)
     signal(SIGINT, SIG_IGN);
     write_logfile("TEAM MANAGER CLEANING");
 
-    // WAIT FOR CAR THREADS TO DIE
-    for (int i = 0; i < count; i++)
-    {
-        pthread_join(carThreads[i], NULL);
-    }
     close(channels[teamID][1]);
     free(carThreads);
 
@@ -259,7 +208,7 @@ void sigint_team(int signo)
     pthread_mutex_destroy(&mutex_box);
 
     printf("[%ld] Team Manager #%d process finished\n", (long)getpid(), teamID);
-    pthread_exit(NULL);
+    exit(0);
 }
 
 car_struct *sort_classif()

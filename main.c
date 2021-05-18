@@ -8,6 +8,15 @@ Projeto realizado por:
 
 int main()
 {
+    // block all signals at start
+    sigfillset(&set_all);
+    sigprocmask(SIG_SETMASK, &set_all, NULL);
+
+    // set of allowed signals
+    sigemptyset(&set_allow);
+    sigaddset(&set_allow, SIGINT);
+    sigaddset(&set_allow, SIGTSTP);
+    sigaddset(&set_allow, SIGUSR1);
 
     // -------------------- CREATE NAMED SEMAPHORES -------------------- //
 
@@ -64,10 +73,14 @@ int main()
     pthread_cond_init(&race->cv_race_started, &attrcondv);
     pthread_cond_init(&race->cv_allow_start, &attrcondv);
     pthread_cond_init(&race->cv_allow_teams, &attrcondv);
+    pthread_cond_init(&race->cv_waiting, &attrcondv);
 
     race->race_started = 0;
     race->threads_created = -1;
     race->car_count = 0;
+    race->team_count = 0;
+    race->end_sim = 0;
+    race->waiting = 0;
     race->classificacao = 1;
 
     // -------------------- CREATE LOG FILE STRUCT -------------------- //
@@ -109,7 +122,6 @@ int main()
     {
         // printf("[%ld] Race Manager process created\n", (long)getpid());
         write_logfile("SIMULATOR STARTING");
-        signal(SIGINT, sigint_race);
         raceManager();
     }
     else if (raceManagerPID == -1)
@@ -123,7 +135,6 @@ int main()
 
     if ((malfunctionManagerPID = fork()) == 0)
     {
-        signal(SIGINT, sigint_malfunction);
         malfunctionManager();
     }
     else if (malfunctionManagerPID == -1)
@@ -134,8 +145,10 @@ int main()
     }
 
     // -------------------- CAPTURE SIGNALS -------------------- //
+    sigprocmask(SIG_UNBLOCK, &set_allow, NULL);
     signal(SIGINT, sigint_simulator);
     signal(SIGTSTP, sigtstp);
+    signal(SIGUSR1, SIG_IGN);
 
     // -------------------- SIMULATOR END -------------------- //
 
