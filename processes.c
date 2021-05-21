@@ -400,7 +400,7 @@ void teamManager(int pipe, int teamID)
 
             all_teams[teamID].box_state = BOX_FULL;
             race -> n_abastecimentos += 1;
-            printf("\nTEAN %s BOX IS REPAIRING CAR %d\n", all_teams[teamID].name, all_teams[teamID].car_id);
+            printf("\nTEAM %s BOX IS REPAIRING CAR %d\n", all_teams[teamID].name, all_teams[teamID].car_id);
 
             if (cars[all_teams[teamID].car_id].avaria == MALFUNCTION)
             {
