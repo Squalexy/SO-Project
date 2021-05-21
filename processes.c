@@ -25,7 +25,8 @@ void malfunctionManager(void)
         while (race->race_started != 1)
         {
             pthread_cond_wait(&race->cv_race_started, &race->race_mutex);
-            if(race->end_sim == 1){
+            if (race->end_sim == 1)
+            {
                 pthread_mutex_unlock(&race->race_mutex);
                 sigprocmask(SIG_UNBLOCK, &set_allow, NULL);
                 sigwait(&set_allow, &signo);
@@ -52,7 +53,7 @@ void malfunctionManager(void)
                 if (rand() % 101 > cars[i].reliability && (cars[i].state == CORRIDA || cars[i].state == SEGURANCA))
                 {
                     msg_to_send.car_id = cars[i].num;
-                    if (msgsnd(mqid, &msg_to_send, sizeof(msg_to_send)-sizeof(long), 0) < 0)
+                    if (msgsnd(mqid, &msg_to_send, sizeof(msg_to_send) - sizeof(long), 0) < 0)
                     {
                         write_logfile("ERROR SENDING MESSAGE TO MSQ");
                         exit(0);
@@ -73,8 +74,8 @@ void raceManager()
 {
     int n_teams = config->n_teams;
     race->n_cars_racing = 0;
-    teamsPID = (pid_t*) malloc(sizeof(pid_t) * n_teams);
-    channels = (int **) malloc(sizeof(int*) * n_teams);
+    teamsPID = (pid_t *)malloc(sizeof(pid_t) * n_teams);
+    channels = (int **)malloc(sizeof(int *) * n_teams);
 
     sigprocmask(SIG_UNBLOCK, &set_allow, NULL);
     signal(SIGINT, sigint_race);
@@ -85,7 +86,7 @@ void raceManager()
 
     for (int i = 0; i < n_teams; i++)
     {
-        channels[i] = (int *) malloc(sizeof(int) * 2);
+        channels[i] = (int *)malloc(sizeof(int) * 2);
         pipe(channels[i]);
     }
 
@@ -131,13 +132,13 @@ void raceManager()
 
                     printf("FINISHED: %d\n", finished);
 
-					pthread_mutex_lock(&race->race_mutex);
-					if (finished == race->car_count)
+                    pthread_mutex_lock(&race->race_mutex);
+                    if (finished == race->car_count)
                     {
                         race->race_started = 0;
-                    	  race->threads_created = -1;
-                    	  finished = 0;
-                    	  pthread_cond_broadcast(&race->cv_race_started);
+                        race->threads_created = -1;
+                        finished = 0;
+                        pthread_cond_broadcast(&race->cv_race_started);
                     }
                     pthread_mutex_unlock(&race->race_mutex);
                 }
@@ -310,11 +311,11 @@ void raceManager()
 
 void teamManager()
 {
-	  //int pipe = channels[teamID][1];
+    //int pipe = channels[teamID][1];
     //car_IDs = (int *) malloc(sizeof(int) * config->max_carros);
     int signo;
     int car_IDs[config->max_carros];
-    carThreads = (pthread_t *) malloc(sizeof(pthread_t) * config->max_carros);
+    carThreads = (pthread_t *)malloc(sizeof(pthread_t) * config->max_carros);
 
     sigprocmask(SIG_UNBLOCK, &set_allow, NULL);
     signal(SIGINT, sigint_team);
@@ -335,10 +336,10 @@ void teamManager()
         printf("---------------------\n[%ld] Team Manager #%d process working\n---------------------\n", (long)getpid(), teamID);
         // -------------------- CREATE BOX -------------------- //
 
-      	all_teams[teamID].box_state = BOX_FREE;
-      	all_teams[teamID].car_id = -1;
-      	all_teams[teamID].reserved_count = 0;
-      	all_teams[teamID].finished = 0;
+        all_teams[teamID].box_state = BOX_FREE;
+        all_teams[teamID].car_id = -1;
+        all_teams[teamID].reserved_count = 0;
+        all_teams[teamID].finished = 0;
 
         // -------------------- CREATE CAR THREADS -------------------- //
         int cars_length = 0;
@@ -351,7 +352,8 @@ void teamManager()
         while (race->threads_created < 0)
         {
             pthread_cond_wait(&race->cv_allow_teams, &race->race_mutex);
-            if (race->end_sim == 1){
+            if (race->end_sim == 1)
+            {
                 pthread_mutex_unlock(&race->race_mutex);
                 sigprocmask(SIG_UNBLOCK, &set_allow, NULL);
                 sigwait(&set_allow, &signo);
@@ -367,7 +369,7 @@ void teamManager()
             // se é um carro da equipa
             if (strcmp(cars[i].team, all_teams[teamID].name) == 0)
             {
-            	//int argv[2];
+                //int argv[2];
                 //argv[0] = i;
                 car_IDs[count] = i;
                 pthread_create(&carThreads[count], NULL, carThread, &car_IDs[count]);
@@ -386,7 +388,7 @@ void teamManager()
 
         // -------------------- BOX STATE -------------------- //
 
-        float time_units = 1.0/ (float)config->time_units;
+        float time_units = 1.0 / (float)config->time_units;
         car_struct *car = NULL;
 
         printf("Team %s BOX is working!\n", all_teams[teamID].name);
@@ -398,7 +400,7 @@ void teamManager()
             // if box is free and there's a car in SEGURANCA state, box becomes RESERVED
             // wait for a car to enter the box
             pthread_mutex_lock(&mutex_box);
-            while(all_teams[teamID].car_id < 0 && all_teams[teamID].finished < count)
+            while (all_teams[teamID].car_id < 0 && all_teams[teamID].finished < count)
             {
                 pthread_cond_wait(&cond_box_full, &mutex_box);
                 if (all_teams[teamID].reserved_count > 0 && all_teams[teamID].box_state == BOX_FREE)
@@ -407,16 +409,17 @@ void teamManager()
                 }
             }
 
-            if (all_teams[teamID].finished == count){
-            	pthread_mutex_unlock(&mutex_box);
-            	break;
+            if (all_teams[teamID].finished == count)
+            {
+                pthread_mutex_unlock(&mutex_box);
+                break;
             }
 
             all_teams[teamID].box_state = BOX_FULL;
             car = cars + (all_teams[teamID].car_id);
             pthread_mutex_unlock(&mutex_box);
-            race -> n_abastecimentos += 1;
-            printf("\nTEAM %s BOX IS REPAIRING CAR %d\n", all_teams[teamID].name, all_teams[teamID].car_id);
+            race->n_abastecimentos += 1;
+            printf("\nTEAM %s BOX IS REPAIRING CAR %d\n", all_teams[teamID].name, car->num);
 
             printf("\nBox from team %s is handling car %d\n", car->team, car->num);
             fflush(stdout);
@@ -437,7 +440,7 @@ void teamManager()
             if (all_teams[teamID].reserved_count > 0)
                 all_teams[teamID].box_state = BOX_RESERVED;
             else
-            	all_teams[teamID].box_state = BOX_FREE;
+                all_teams[teamID].box_state = BOX_FREE;
 
             // signal the cars the box is free
             pthread_cond_signal(&cond_box_free);
@@ -456,9 +459,9 @@ void teamManager()
         pthread_mutex_unlock(&race->race_mutex);
 
         for (int i = 0; i < count; i++)
-    	  {
-        	pthread_join(carThreads[i], NULL);
-    	  }
+        {
+            pthread_join(carThreads[i], NULL);
+        }
     }
 }
 
@@ -542,7 +545,7 @@ void *carThread(void *id)
         {
         case CORRIDA:
             // -------------------- MALFUNCTION MESSAGE FROM MSQ -------------------- //
-            if ((bytes_received = msgrcv(mqid, &received_msg, sizeof(received_msg)-sizeof(long), car->num, IPC_NOWAIT)) < 0 && errno != ENOMSG)
+            if ((bytes_received = msgrcv(mqid, &received_msg, sizeof(received_msg) - sizeof(long), car->num, IPC_NOWAIT)) < 0 && errno != ENOMSG)
             {
                 write_logfile("ERROR RECEIVING MESSAGE FROM MSQ");
                 exit(0);
@@ -553,7 +556,7 @@ void *carThread(void *id)
 
                 pthread_mutex_lock(&mutex_box);
                 ++(all_teams[teamID].reserved_count);
-				pthread_cond_signal(&cond_box_full);
+                pthread_cond_signal(&cond_box_full);
                 pthread_mutex_unlock(&mutex_box);
 
                 car->state = SEGURANCA;
@@ -573,7 +576,7 @@ void *carThread(void *id)
                 //* MUDA DE ESTADO
                 pthread_mutex_lock(&mutex_box);
                 ++(all_teams[teamID].reserved_count);
-				pthread_cond_signal(&cond_box_full);
+                pthread_cond_signal(&cond_box_full);
                 pthread_mutex_unlock(&mutex_box);
 
                 car->state = SEGURANCA;
@@ -589,24 +592,24 @@ void *carThread(void *id)
                 // se carro estiver a chegar ao ponto de partida, tenta entrar na box e conclui a volta
                 if (config->turn_distance < car->dist_percorrida + speed)
                 {
-                	// verificar se a box esta livre
-                	int box_state;
-					pthread_mutex_lock(&mutex_box);
-					box_state = all_teams[team].box_state;
+                    // verificar se a box esta livre
+                    int box_state;
+                    pthread_mutex_lock(&mutex_box);
+                    box_state = all_teams[team].box_state;
                     pthread_mutex_unlock(&mutex_box);
 
                     if (box_state == BOX_FREE)
                     {
-                    	//* MUDA DE ESTADO
+                        //* MUDA DE ESTADO
 
-                    	prev_state = car->state;
-                    	car->state = BOX;
-                    	car->n_stops_box += 1;
-                    	write(pipe, &car->state, sizeof(int));
+                        prev_state = car->state;
+                        car->state = BOX;
+                        car->n_stops_box += 1;
+                        write(pipe, &car->state, sizeof(int));
 
-                    	mud_estado[LINESIZE] = "";
-                    	sprintf(mud_estado, "CAR %d CHANGED STATE <<CORRIDA>> TO STATE <<BOX>>\n", car->num);
-                    	write_logfile(mud_estado);
+                        strcpy(mud_estado, "");
+                        sprintf(mud_estado, "CAR %d CHANGED STATE <<CORRIDA>> TO STATE <<BOX>>\n", car->num);
+                        write_logfile(mud_estado);
                     }
                 }
             }
@@ -623,10 +626,10 @@ void *carThread(void *id)
             // se box estiver reservada e carro[SEGURANCA] estiver a aproximar-se da meta, entra na box
             if (config->turn_distance <= car->dist_percorrida + speed && car->voltas + 1 < config->turns_number)
             {
-            	// verificar se a box esta livre
+                // verificar se a box esta livre
                 int box_state;
-				pthread_mutex_lock(&mutex_box);
-				box_state = all_teams[team].box_state;
+                pthread_mutex_lock(&mutex_box);
+                box_state = all_teams[team].box_state;
                 pthread_mutex_unlock(&mutex_box);
 
                 if (box_state != BOX_FULL)
@@ -638,7 +641,7 @@ void *carThread(void *id)
                     car->n_stops_box += 1;
                     write(pipe, &car->state, sizeof(int));
 
-                    mud_estado[LINESIZE] = "";
+                    strcpy(mud_estado, "");
                     sprintf(mud_estado, "CAR %d CHANGED STATE <<SEGURANCA>> TO STATE <<BOX>>\n", car->num);
                     write_logfile(mud_estado);
                 }
@@ -656,7 +659,7 @@ void *carThread(void *id)
             break;
 
         case BOX:
-        	printf("**Car %d is entering the box from team %s**\n", car->num, car->team);
+            printf("**Car %d is entering the box from team %s**\n", car->num, car->team);
             car->dist_percorrida = 0;
             speed = 0;
             consumption = 0;
@@ -669,8 +672,9 @@ void *carThread(void *id)
             printf("Car %d signaled the box with CV\n", car->num);
 
             printf("Car %d is gonna wait for the box to free him...\n", car->num);
-        	pthread_mutex_lock(&mutex_box);
-        	if (prev_state == SEGURANCA) --(all_teams[teamID].reserved_count);
+            pthread_mutex_lock(&mutex_box);
+            if (prev_state == SEGURANCA)
+                --(all_teams[teamID].reserved_count);
             while (all_teams[team].car_id >= 0)
             {
                 pthread_cond_wait(&cond_box_free, &mutex_box);
@@ -681,11 +685,11 @@ void *carThread(void *id)
             //* MUDA DE ESTADO
             car->state = CORRIDA;
 
-            mud_estado[LINESIZE] = "";
+            strcpy(mud_estado, "");
             sprintf(mud_estado, "CAR %d CHANGED STATE <<BOX>> TO STATE <<CORRIDA>>\n", car->num);
             write_logfile(mud_estado);
 
-            float speed = car->speed;
+            speed = car->speed;
             car->voltas += 1;
             car->dist_percorrida = 0;
             consumption = car->consumption;
@@ -699,7 +703,8 @@ void *carThread(void *id)
             write_logfile(fim_volta);
             write(pipe, &car->state, sizeof(int));
 
-            if(race->n_cars_racing == 0){
+            if (race->n_cars_racing == 0)
+            {
                 printf("\n\n\n*******\nEND OF RACE\n*******");
             }
 
@@ -711,14 +716,14 @@ void *carThread(void *id)
             pthread_mutex_lock(&mutex_box);
             ++(all_teams[teamID].finished);
             pthread_cond_signal(&cond_box_full);
-			pthread_mutex_unlock(&mutex_box);
+            pthread_mutex_unlock(&mutex_box);
 
             pthread_mutex_lock(&race->race_mutex);
-    		while (race->race_started != 0)
-    		{
-        		pthread_cond_wait(&race->cv_race_started, &race->race_mutex);
-    		}
-    		pthread_mutex_unlock(&race->race_mutex);
+            while (race->race_started != 0)
+            {
+                pthread_cond_wait(&race->cv_race_started, &race->race_mutex);
+            }
+            pthread_mutex_unlock(&race->race_mutex);
 
             pthread_exit(NULL);
             break;
@@ -732,14 +737,14 @@ void *carThread(void *id)
             pthread_mutex_lock(&mutex_box);
             ++(all_teams[teamID].finished);
             pthread_cond_signal(&cond_box_full);
-			pthread_mutex_unlock(&mutex_box);
+            pthread_mutex_unlock(&mutex_box);
 
             pthread_mutex_lock(&race->race_mutex);
-    		while (race->race_started != 0)
-    		{
-        		pthread_cond_wait(&race->cv_race_started, &race->race_mutex);
-    		}
-    		pthread_mutex_unlock(&race->race_mutex);
+            while (race->race_started != 0)
+            {
+                pthread_cond_wait(&race->cv_race_started, &race->race_mutex);
+            }
+            pthread_mutex_unlock(&race->race_mutex);
 
             pthread_exit(NULL);
             break;
