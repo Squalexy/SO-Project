@@ -415,6 +415,8 @@ void teamManager()
             all_teams[teamID].box_state = BOX_FULL;
             car = cars + (all_teams[teamID].car_id);
             pthread_mutex_unlock(&mutex_box);
+            race -> n_abastecimentos += 1;
+            printf("\nTEAM %s BOX IS REPAIRING CAR %d\n", all_teams[teamID].name, all_teams[teamID].car_id);
 
             printf("\nBox from team %s is handling car %d\n", car->team, car->num);
             fflush(stdout);

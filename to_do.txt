@@ -1,9 +1,0 @@
-box_struct
-- adicionar id do carro (que está na box)
-
-box state:
-- abastecer o carro através do id do carro
-- teamID passa a ser name[TEAM_NAME_SIZE]
-
-car thread:
-- mudar variáveis devido à alteração da estrutura
