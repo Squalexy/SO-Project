@@ -50,7 +50,7 @@ void malfunctionManager(void)
             usleep(config->T_Avaria * (1.0 / (float)config->time_units) * 1000000);
             for (int i = 0; i < race->car_count; i++)
             {
-                if (rand() % 101 > cars[i].reliability && (cars[i].state == CORRIDA || cars[i].state == SEGURANCA))
+                if (rand() % 101 > cars[i].reliability)
                 {
                     msg_to_send.car_id = cars[i].num;
                     if (msgsnd(mqid, &msg_to_send, sizeof(msg_to_send) - sizeof(long), 0) < 0)
@@ -540,6 +540,29 @@ void *carThread(void *id)
             printf("\nCar %d completed a turn!\nNumber of turns: %d\n\n", car->num, car->voltas);
         }
 
+        // -------------------- MALFUNCTION MESSAGE FROM MSQ -------------------- //
+        if ((bytes_received = msgrcv(mqid, &received_msg, sizeof(received_msg) - sizeof(long), car->num, IPC_NOWAIT)) < 0 && errno != ENOMSG)
+        {
+            write_logfile("ERROR RECEIVING MESSAGE FROM MSQ");
+            exit(0);
+        }
+        else if (bytes_received >= 0)
+        {
+            //* MUDA DE ESTADO
+
+            pthread_mutex_lock(&mutex_box);
+            ++(all_teams[teamID].reserved_count);
+            pthread_cond_signal(&cond_box_full);
+            pthread_mutex_unlock(&mutex_box);
+
+            car->state = SEGURANCA;
+            car->avaria = MALFUNCTION;
+            write(pipe, &car->state, sizeof(int));
+            strcpy(mud_estado, "");
+            sprintf(mud_estado, "NEW MALFUNCTION IN CAR %d RECEIVED\n", car->num);
+            write_logfile(mud_estado);
+        }
+
         if (car->voltas == config->turns_number)
         {
             car->state = TERMINADO;
@@ -553,28 +576,6 @@ void *carThread(void *id)
         switch (car->state)
         {
         case CORRIDA:
-            // -------------------- MALFUNCTION MESSAGE FROM MSQ -------------------- //
-            if ((bytes_received = msgrcv(mqid, &received_msg, sizeof(received_msg) - sizeof(long), car->num, IPC_NOWAIT)) < 0 && errno != ENOMSG)
-            {
-                write_logfile("ERROR RECEIVING MESSAGE FROM MSQ");
-                exit(0);
-            }
-            else if (bytes_received >= 0)
-            {
-                //* MUDA DE ESTADO
-
-                pthread_mutex_lock(&mutex_box);
-                ++(all_teams[teamID].reserved_count);
-                pthread_cond_signal(&cond_box_full);
-                pthread_mutex_unlock(&mutex_box);
-
-                car->state = SEGURANCA;
-                car->avaria = MALFUNCTION;
-                write(pipe, &car->state, sizeof(int));
-                strcpy(mud_estado, "");
-                sprintf(mud_estado, "NEW MALFUNCTION IN CAR %d AND CHANGED STATE <<CORRIDA>> TO STATE <<SEGURANCA>>\n", car->num);
-                write_logfile(mud_estado);
-            }
 
             /* se atingir combustível suficiente apenas para 2 voltas e se não lhe faltar uma volta para acabar a corrida
                     condição para assegurar que o carro não vai para a box quando podia muito bem acabar a corrida */
