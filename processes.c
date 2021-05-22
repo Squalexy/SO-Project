@@ -191,21 +191,39 @@ void raceManager()
                     char team_name[TEAM_NAME_SIZE];
                     char *token = NULL;
                     char fields[10][64]; // COMMAND SEPARATED BY COMMAS AND SPACES (EACH FIELD)
+                    int error = 0;
 
                     int car_num = 0, car_speed = 0, car_reliability = 0, converted = 0;
                     float car_consumption = 0;
 
                     token = strtok(buffer + 7, ", "); // RETRIEVE "ADDCAR"
+
+                    if (token == NULL || token[0] == 0)
+                    {
+                        write_logfile("ERROR READING NAMED PIPE --- INVALID FIELD\n");
+                        continue;
+                    }
+
                     for (int i = 0; i < 10; i++)
                     {
                         strncpy(fields[i], token, 64);
                         token = strtok(NULL, ", ");
+                        if ((token == NULL || token[0] == 0) && i < 9)
+                        {
+                            error = 1;
+                            write_logfile("ERROR READING NAMED PIPE --- INVALID FIELD\n");
+                            break;
+                        }
+                    }
+
+                    if(error == 1){
+                        continue;
                     }
 
                     // VERIFIES IF INTEGERS ARE VALID AND NOT NEGATIVE
                     if (check_int(fields[3]) == false || check_int(fields[5]) == false || check_int(fields[9]) == false)
                     {
-                        write_logfile("ERROR READING NAMED PIPE - INVALID INTEGER");
+                        write_logfile("ERROR READING NAMED PIPE --- INVALID INTEGER");
                         continue;
                     }
 
@@ -213,7 +231,7 @@ void raceManager()
                     double temp;
                     if (sscanf(fields[7], "%lf", &temp) == 0 || !strcmp(fields[7], "-"))
                     {
-                        write_logfile("ERROR READING NAMED PIPE - INVALID FLOAT");
+                        write_logfile("ERROR READING NAMED PIPE --- INVALID FLOAT");
                         continue;
                     }
 
@@ -228,11 +246,6 @@ void raceManager()
                     {
                         car_num = atoi(fields[3]);
                         converted += 1;
-                    }
-
-                    if(car_num <= 0){
-                        write_logfile("ERROR READING NAMED PIPE --- CAR_NUM MUST BE POSITIVE INTEGER\n");
-                        continue;
                     }
 
                     if (strcmp(fields[4], "SPEED:") == 0)
@@ -255,35 +268,54 @@ void raceManager()
 
                     if (converted != 5)
                     {
-                        write_logfile("ERROR READING NAMED PIPE - INVALID FIELDS, MUST USE CORRECT COMMANDS AND INPUTS\n");
+                        write_logfile("ERROR READING NAMED PIPE --- INVALID FIELDS, MUST USE CORRECT COMMANDS AND INPUTS\n");
                         continue;
                     }
+
+                    if (car_num <= 0)
+                    {
+                        write_logfile("ERROR READING NAMED PIPE --- CAR_NUM MUST BE POSITIVE INTEGER\n");
+                        continue;
+                    }
+
+                    error = 0;
 
                     for (int i = 0; i < race->car_count; i++)
                     {
                         if (car_num == cars[i].num)
                         {
-                            write_logfile("ERROR READING NAMED PIPE - CAR ALREADY EXISTS\n");
-                            continue;
+                            error = 1;
+                            write_logfile("ERROR READING NAMED PIPE --- CAR ALREADY EXISTS\n");
+                            break;
                         }
+                    }
+
+                    if (error == 1)
+                    {
+                        continue;
                     }
 
                     // VERIFIES IF A TEAM EXISTS; IF IT DOESN'T, CREATES A NEW ONE
                     int i;
+
+                    error = 0;
+
                     for (i = 0; i < team_count; i++)
                     {
                         if (strcmp(team_name, all_teams[i].name) == 0)
                         {
                             if (all_teams[i].number_of_cars == config->max_carros)
                             {
-                                continue;
+                                error = 1;
+                                write_logfile("ERROR READING NAMED PIPE --- NUMBER OF CARS ALLOWED EXCEEDED\n");
                             }
-                            else
-                            {
-                                all_teams[i].number_of_cars++;
-                                break;
-                            }
+                            break;
                         }
+                    }
+
+                    if (error == 1)
+                    {
+                        continue;
                     }
 
                     if (i >= team_count)
@@ -322,8 +354,9 @@ void raceManager()
                     cars[car_i].consumption = car_consumption;
                     cars[car_i].reliability = car_reliability;
 
+                    all_teams[i].number_of_cars++;
                     strcpy(racing, "");
-                    sprintf(racing, "NEW CAR LOADED => TEAM: %s, CAR: %d, SPEED: %d, CONSUMPTION: %.2f, RELIABILITY: %d", team_name, car_num, car_speed, car_consumption, car_reliability);
+                    sprintf(racing, "NEW CAR LOADED => TEAM: %s, CAR: %d, SPEED: %d, CONSUMPTION: %.2f, RELIABILITY: %d\n", team_name, car_num, car_speed, car_consumption, car_reliability);
                     write_logfile(racing);
                 }
                 else if (strcmp("START RACE!", buffer) == 0)
@@ -335,6 +368,11 @@ void raceManager()
                         continue;
                     }
                     sigprocmask(SIG_BLOCK, &set_allow, NULL);
+
+                    //? CLEAN MSQ
+
+                    msg temp;
+                    while(msgrcv(mqid, &temp, sizeof(temp) - sizeof(long), 0, IPC_NOWAIT) >= 0);
 
                     // BEGINS RACE WHEN ALL TEAM MANAGERS FINISHED CREATING CAR THREADS
                     pthread_mutex_lock(&race->race_mutex);

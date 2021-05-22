@@ -30,10 +30,14 @@ int main()
         perror("ERROR OPENING LOG FILE.\n");
         exit(1);
     }
-    
+
     // -------------------- READ CONTENT FROM CONFIG FILE -------------------- //
 
     int *file_contents = read_content_from_file();
+
+#ifdef DEBUG
+    print_content_from_file(file_contents);
+#endif
 
     // -------------------- CREATE SHARED MEMORY -------------------- //
 

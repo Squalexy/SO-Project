@@ -18,21 +18,21 @@ int *read_content_from_file()
     {
         if (fgets(line, LINESIZE, fptr) != NULL)
         {
-            if (strchr(line, ',') != NULL)
+            if (strchr(line, ',') != NULL && i != 0 && i != 3 && i != 4 && i != 5 && i != 8)
             {
                 token = strtok(line, ", ");
                 file_contents[i] = atoi(token);
-                if (file_contents[i] < 0)
+                if (check_int(token) == false || file_contents[i] <= 0)
                 {
-                    write_logfile("ERROR READING CONFIG FILE --- A NEGATIVE NUMBER WAS INSERTED\n");
+                    write_logfile("ERROR READING CONFIG FILE --- A NEGATIVE OR WRONG NUMBER WAS INSERTED\n");
                     exit(1);
                 }
                 i++;
                 token = strtok(NULL, ", ");
                 file_contents[i] = atoi(token);
-                if (file_contents[i] < 0)
+                if (check_int(token) == false || file_contents[i] <= 0)
                 {
-                    write_logfile("ERROR READING CONFIG FILE --- A NEGATIVE NUMBER WAS INSERTED\n");
+                    write_logfile("ERROR READING CONFIG FILE --- A NEGATIVE OR WRONG NUMBER WAS INSERTED\n");
                     exit(1);
                 }
             }
@@ -40,9 +40,9 @@ int *read_content_from_file()
             {
                 token = strtok(line, ", ");
                 file_contents[i] = atoi(token);
-                if (file_contents[i] < 0)
+                if (check_int(token) == false || file_contents[i] <= 0)
                 {
-                    write_logfile("ERROR READING CONFIG FILE --- A NEGATIVE NUMBER WAS INSERTED\n");
+                    write_logfile("ERROR READING CONFIG FILE --- A NEGATIVE OR WRONG NUMBER WAS INSERTED\n");
                     exit(1);
                 }
             }
@@ -284,6 +284,9 @@ bool check_int(char *variable)
         if (variable[i] >= '0' && variable[i] <= '9')
         {
             continue;
+        }
+        else if (variable[i + 1] == '\n'){
+            return true;
         }
         else
         {

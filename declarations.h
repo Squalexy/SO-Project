@@ -1,6 +1,8 @@
 #ifndef declarations_h
 #define declarations_h
 
+#define DEBUG
+
 // ------------------ includes ------------------ //
 
 #include <stdio.h>
