@@ -4,7 +4,7 @@
     
     PROJECT BY:
     ALEXY DE ALMEIDA Nº2019192123
-    JOSÉ GONÇALVAS Nºº2019223292
+    JOSÉ GONÇALVES Nºº2019223292
 */
 
 #include "declarations.h"
