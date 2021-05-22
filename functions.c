@@ -178,6 +178,8 @@ void sigint_race(int signo)
     free(teamsPID);
     free(channels);
 
+    print_statistics();
+
     close(fd_named_pipe);
 
     strcpy(finished, "");
