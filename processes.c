@@ -84,7 +84,6 @@ void raceManager()
 {
     char racing[LINESIZE];
     int n_teams = config->n_teams;
-    int signo;
     teamsPID = (pid_t *)malloc(sizeof(pid_t) * n_teams);
     channels = (int **)malloc(sizeof(int *) * n_teams);
 
