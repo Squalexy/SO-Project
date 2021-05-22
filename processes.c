@@ -126,14 +126,14 @@ void raceManager()
         }
         FD_SET(fd_named_pipe, &read_set);
 
-        // SELECT named pipe and unnamed pipes
+        // SELECT NAMED PIPE AND UNNAMED PIPES
         if (select(fd_named_pipe + 1, &read_set, NULL, NULL, NULL) > 0)
         {
             for (int i = 0; i < n_teams; i++)
             {
                 if (FD_ISSET(channels[i][0], &read_set))
                 {
-                    // if from unnamed pipe do something else about the car state
+                    // IF FROM UNNAMED PIPE DO SOMETHING ELSE ABOUT THE CAR STATE
                     int state = 0;
                     nread = read(channels[i][0], &state, sizeof(int));
                     if (nread > 0)
@@ -149,14 +149,15 @@ void raceManager()
                     {
                         race->race_started = 0;
                         race->threads_created = -1;
-                    
+
                         finished = 0;
                         write_logfile("RACE ENDED");
                         pthread_cond_broadcast(&race->cv_race_started);
                         pthread_mutex_unlock(&race->race_mutex);
                         sigprocmask(SIG_UNBLOCK, &set_allow, NULL);
                     }
-                    else{
+                    else
+                    {
                         pthread_mutex_unlock(&race->race_mutex);
                     }
                 }
@@ -189,26 +190,26 @@ void raceManager()
                     write_logfile(racing);
                     char team_name[TEAM_NAME_SIZE];
                     char *token = NULL;
-                    char fields[10][64]; // comando separado por vírgula e espaço (cada campo)
+                    char fields[10][64]; // COMMAND SEPARATED BY COMMAS AND SPACES (EACH FIELD)
 
                     int car_num = 0, car_speed = 0, car_reliability = 0, converted = 0;
                     float car_consumption = 0;
 
-                    token = strtok(buffer + 7, ", "); // para tirar o ADDCAR
+                    token = strtok(buffer + 7, ", "); // RETRIEVE "ADDCAR"
                     for (int i = 0; i < 10; i++)
                     {
                         strncpy(fields[i], token, 64);
                         token = strtok(NULL, ", ");
                     }
 
-                    // verifies if integers are valid and not negative
+                    // VERIFIES IF INTEGERS ARE VALID AND NOT NEGATIVE
                     if (check_int(fields[3]) == false || check_int(fields[5]) == false || check_int(fields[9]) == false)
                     {
                         write_logfile("ERROR READING NAMED PIPE - INVALID INTEGER");
                         continue;
                     }
 
-                    // verifies float is valid and not negative
+                    // VERIFIES IF FLOAT IS VALID AND NOT NEGATIVE
                     double temp;
                     if (sscanf(fields[7], "%lf", &temp) == 0 || !strcmp(fields[7], "-"))
                     {
@@ -216,7 +217,7 @@ void raceManager()
                         continue;
                     }
 
-                    // reads commands and numbers from named pipe and checks if they are valid
+                    // READS COMMANDS AND NUMBERS FROM NAMED PIPE AND CHECKS IF THEY ARE VALID
                     if (strcmp(fields[0], "TEAM:") == 0)
                     {
                         strncpy(team_name, fields[1], TEAM_NAME_SIZE);
@@ -262,7 +263,7 @@ void raceManager()
                         }
                     }
 
-                    // verifiy if a team exists; if it doesn't, creates a new one
+                    // VERIFIES IF A TEAM EXISTS; IF IT DOESN'T, CREATES A NEW ONE
                     int i;
                     for (i = 0; i < team_count; i++)
                     {
@@ -304,7 +305,7 @@ void raceManager()
                         pthread_mutex_unlock(&race->race_mutex);
                     }
 
-                    // if number of cars hasn't exceed maximum allowed and commands are valid, creates car struct
+                    // IF NUMBER OF CARS HASN'T EXCEED MAXIMUM ALLOWED AND COMMANDS ARE VALID, CREATES CAR STRUCT
                     int car_i;
                     pthread_mutex_lock(&race->race_mutex);
                     car_i = (race->car_count)++;
@@ -322,14 +323,15 @@ void raceManager()
                 }
                 else if (strcmp("START RACE!", buffer) == 0)
                 {
-                    // verifies all teams are present
+                    // VERIFIES IF ALL TEAMS ARE PRESENT
                     if (team_count != n_teams)
                     {
                         write_logfile("CANNOT START, NOT ENOUGH TEAMS");
                         continue;
                     }
                     sigprocmask(SIG_BLOCK, &set_allow, NULL);
-                    // iniciar a corrida quando todos os team managers acabarem de criar as car threads
+
+                    // BEGINS RACE WHEN ALL TEAM MANAGERS FINISHED CREATING CAR THREADS
                     pthread_mutex_lock(&race->race_mutex);
                     race->n_avarias = 0;
                     race->n_abastecimentos = 0;
@@ -364,7 +366,7 @@ void teamManager()
 {
     char car_racing[LINESIZE];
     int signo;
-    car_IDs = (int *) malloc(sizeof(int) * config->max_carros);
+    car_IDs = (int *)malloc(sizeof(int) * config->max_carros);
     carThreads = (pthread_t *)malloc(sizeof(pthread_t) * config->max_carros);
 
     char teaming[LINESIZE];
@@ -381,7 +383,7 @@ void teamManager()
     cond_box_full = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
     cond_box_free = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
 
-    // block all signals
+    // BLOCKS ALL SIGNALS
     sigprocmask(SIG_BLOCK, &set_allow, NULL);
     while (1)
     {
@@ -579,33 +581,37 @@ void *carThread(void *id)
 
     while (1)
     {
-        //printf("Car %d struct: TEAM %s, AVARIA: %d, COMBUSTÍVEL: %f, d_PERCORRIDA: %f, VOLTAS: %d, STATE: %d, SPEED: %f, CONSUMPTION: %f, RELIABILITY: %d\n", car->num, car->team, car->avaria, car->combustivel, car->dist_percorrida, car->voltas, car->state, speed, consumption, car->reliability);
 
-        if (car->state != BOX && car->state != DESISTENCIA && car->state != TERMINADO){
-			if (car->dist_percorrida >= config->turn_distance)
-        	{
-            	car->voltas += 1;
-            	car->dist_percorrida = 0 + (car->dist_percorrida - config->turn_distance);
-            	printf("\nCar %d completed a turn!\nNumber of turns: %d\n\n", car->num, car->voltas);
-            	
-            	pthread_mutex_lock(&race->race_mutex);
-        		if (race->end_sim == 1){
-            		car->state = TERMINADO;
-        		}
-        		pthread_mutex_unlock(&race->race_mutex);
-        	}
-        	
-        	if (car->voltas == config->turns_number)
-        	{
-            	car->state = TERMINADO;
-        	}
-	
-        	if (car->combustivel <= 0 && car->state != TERMINADO)
-        	{
-            	car->state = DESISTENCIA;
-        	}
-		}
-        
+        if (car->state != BOX && car->state != DESISTENCIA && car->state != TERMINADO)
+        {
+            if (car->dist_percorrida >= config->turn_distance)
+            {
+                car->voltas += 1;
+                car->dist_percorrida = 0 + (car->dist_percorrida - config->turn_distance);
+
+                strcpy(car_racing, "");
+                sprintf(car_racing, "CAR #%d COMPLETED A TURN! --- NUMBER OF TURNS: %d", car->num, car->voltas);
+                write_logfile(car_racing);
+
+                pthread_mutex_lock(&race->race_mutex);
+                if (race->end_sim == 1)
+                {
+                    car->state = TERMINADO;
+                }
+                pthread_mutex_unlock(&race->race_mutex);
+            }
+
+            if (car->voltas == config->turns_number)
+            {
+                car->state = TERMINADO;
+            }
+
+            if (car->combustivel <= 0 && car->state != TERMINADO)
+            {
+                car->state = DESISTENCIA;
+            }
+        }
+
         // -------------------- MALFUNCTION MESSAGE FROM MSQ -------------------- //
         if ((bytes_received = msgrcv(mqid, &received_msg, sizeof(received_msg) - sizeof(long), car->num, IPC_NOWAIT)) < 0 && errno != ENOMSG)
         {
@@ -614,7 +620,7 @@ void *carThread(void *id)
         }
         else if (bytes_received >= 0 && (car->state == SEGURANCA || car->state == CORRIDA))
         {
-            //? CHANGES CAR STATE
+            //* CHANGES CAR STATE
 
             pthread_mutex_lock(&mutex_box);
             ++(all_teams[teamID].reserved_count);
@@ -638,7 +644,7 @@ void *carThread(void *id)
 
             if (car->combustivel <= ((2 * config->turn_distance * consumption) / speed) && car->voltas + 2 < config->turns_number)
             {
-                //? CHANGES CAR STATE
+                //* CHANGES CAR STATE
                 pthread_mutex_lock(&mutex_box);
                 ++(all_teams[teamID].reserved_count);
                 pthread_cond_signal(&cond_box_full);
@@ -661,7 +667,8 @@ void *carThread(void *id)
                 {
                     // if the simulator is going to close, end lap instead of going to box
                     pthread_mutex_lock(&race->race_mutex);
-                    if (race->end_sim == 1){
+                    if (race->end_sim == 1)
+                    {
                         car->state = TERMINADO;
                         pthread_mutex_unlock(&race->race_mutex);
                         break;
@@ -672,12 +679,16 @@ void *carThread(void *id)
                     pthread_mutex_lock(&mutex_box);
                     if (all_teams[team].box_state == BOX_FREE)
                     {
-            			all_teams[team].car_id = car_id;
-            			pthread_cond_signal(&cond_box_full);
-            			pthread_mutex_unlock(&mutex_box);
-            			printf("Car %d signaled the box with CV\n", car->num);
+                        all_teams[team].car_id = car_id;
+                        pthread_cond_signal(&cond_box_full);
+                        pthread_mutex_unlock(&mutex_box);
 
-                        //* MUDA DE ESTADO
+#ifdef DEBUG
+                        //? printf("** CAR %d SIGNALED TEAM BOX WITH CV **\n", car->num);
+                        fflush(stdout);
+#endif
+
+                        //* CHANGES CAR STATE
                         prev_state = car->state;
                         car->state = BOX;
                         car->n_stops_box += 1;
@@ -689,7 +700,7 @@ void *carThread(void *id)
                     }
                     else
                     {
-                    	pthread_mutex_unlock(&mutex_box);
+                        pthread_mutex_unlock(&mutex_box);
                     }
                 }
             }
@@ -708,7 +719,8 @@ void *carThread(void *id)
             {
                 // if the simulator is going to close, end lap instead of going to box
                 pthread_mutex_lock(&race->race_mutex);
-                if (race->end_sim == 1){
+                if (race->end_sim == 1)
+                {
                     car->state = TERMINADO;
                     pthread_mutex_unlock(&race->race_mutex);
                     break;
@@ -719,12 +731,16 @@ void *carThread(void *id)
                 pthread_mutex_lock(&mutex_box);
                 if (all_teams[team].box_state != BOX_FULL)
                 {
-                	all_teams[team].car_id = car_id;
-            		pthread_cond_signal(&cond_box_full);
-            		pthread_mutex_unlock(&mutex_box);
-            		printf("Car %d signaled the box with CV\n", car->num);
-            		
-                    //* MUDA DE ESTADO
+                    all_teams[team].car_id = car_id;
+                    pthread_cond_signal(&cond_box_full);
+                    pthread_mutex_unlock(&mutex_box);
+
+#ifdef DEBUG
+                    //? printf("** CAR %d SIGNALED TEAM BOX WITH CV **\n", car->num);
+                    fflush(stdout);
+#endif
+
+                    //* CHANGES CAR STATE
                     prev_state = car->state;
                     car->state = BOX;
                     car->n_stops_box += 1;
@@ -733,9 +749,10 @@ void *carThread(void *id)
                     strcpy(mud_estado, "");
                     sprintf(mud_estado, "CAR #%d CHANGED STATE <<SEGURANCA>> TO STATE <<BOX>>\n", car->num);
                     write_logfile(mud_estado);
-                }else
+                }
+                else
                 {
-                	pthread_mutex_unlock(&mutex_box);
+                    pthread_mutex_unlock(&mutex_box);
                 }
             }
 
@@ -761,7 +778,10 @@ void *carThread(void *id)
             speed = 0;
             consumption = 0;
 
-            printf("Car %d is gonna wait for the box to free him...\n", car->num);
+#ifdef DEBUG
+            //? printf("** CAR #%d SIGNALED THE BOX WITH CV **\n", car->num);
+            fflush(stdout);
+#endif
             pthread_mutex_lock(&mutex_box);
             if (prev_state == SEGURANCA)
                 --(all_teams[teamID].reserved_count);
@@ -771,10 +791,16 @@ void *carThread(void *id)
             }
             pthread_mutex_unlock(&mutex_box);
 
-            //* MUDA DE ESTADO
+#ifdef DEBUG
+            //? printf("** CAR %d IS OUT OF THE BOX **\n", car->num);
+            fflush(stdout);
+#endif
+
+            //* CHANGES CAR STATE
             // if the simulator is going to close, end race instead of continuing
             pthread_mutex_lock(&race->race_mutex);
-            if (race->end_sim == 1){
+            if (race->end_sim == 1)
+            {
                 car->state = TERMINADO;
                 pthread_mutex_unlock(&race->race_mutex);
                 break;
