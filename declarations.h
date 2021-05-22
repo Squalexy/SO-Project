@@ -24,7 +24,8 @@
 // ------------------ defines ------------------ //
 
 #define ARRAYSIZE 9
-#define LINESIZE 200
+#define LINESIZE 500
+#define BUFFERSIZE 100
 #define TEAM_NAME_SIZE 64
 
 // box states
@@ -171,9 +172,6 @@ void sigint_race(int signo);
 void sigint_malfunction(int signo);
 void sigint_team(int signo);
 bool check_int(char *variable);
-int check_commands(int car_num, int car_speed, int car_reliability, int converted, float car_consumption, char **fields, char *team_name, int team_count);
-int update_or_create_team(int team_count, char* team_name);
-void create_car_struct(char *team_name, int car_num, int car_speed, int car_consumption, int car_reliability);
 
 // other
 pid_t *teamsPID;

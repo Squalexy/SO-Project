@@ -27,7 +27,7 @@ int main()
     log_file = fopen("log.txt", "w");
     if (log_file == NULL)
     {
-        perror("Error opening log file.\n");
+        perror("ERROR OPENING LOG FILE.\n");
         exit(1);
     }
 
@@ -43,13 +43,13 @@ int main()
 
     if ((shmid = shmget(IPC_PRIVATE, sizeof(config_struct) + sizeof(race_state) + (sizeof(team_struct) * file_contents[3]) + (sizeof(car_struct) * file_contents[4] * file_contents[3]), IPC_CREAT | 0766)) < 0)
     {
-        perror("shmget error!\n");
+        write_logfile("SHMGET ERROR!\n");
         exit(1);
     }
 
     if ((mem = (char *)shmat(shmid, NULL, 0)) == (char *)-1)
     {
-        perror("shmat error!\n");
+        write_logfile("SHMAT ERROR!\n");
         exit(1);
     }
 
@@ -96,14 +96,14 @@ int main()
     config->fuel_capacity = file_contents[8];
 
     // PRINT CONTENT FROM LOG FILE
-    print_content_from_file(file_contents);
+    //? print_content_from_file(file_contents);
 
     // -------------------- CREATE NAMED PIPE -------------------- //
 
     unlink(PIPE_NAME);
     if ((mkfifo(PIPE_NAME, O_CREAT | O_EXCL | 0600) < 0) && (errno != EEXIST))
     {
-        perror("Cannot create pipe!\n");
+        write_logfile("ERROR CREATING NAMED PIPE\n");
         exit(1);
     }
 
@@ -112,7 +112,7 @@ int main()
     mqid = msgget(IPC_PRIVATE, IPC_CREAT | 0777);
     if (mqid < 0)
     {
-        perror("Creating message queue");
+        write_logfile("ERROR CREATING MESSAGE QUEUE\n");
         exit(0);
     }
 
@@ -121,13 +121,13 @@ int main()
     if ((raceManagerPID = fork()) == 0)
     {
         // printf("[%ld] Race Manager process created\n", (long)getpid());
-        write_logfile("SIMULATOR STARTING");
+        write_logfile("SIMULATOR STARTING\n");
         raceManager();
     }
     else if (raceManagerPID == -1)
     {
         // perror("Error creating Race Manager process\n");
-        write_logfile("ERROR CREATING RACE MANAGER PROCESS");
+        write_logfile("ERROR CREATING RACE MANAGER PROCESS\n");
         exit(1);
     }
 
@@ -140,7 +140,7 @@ int main()
     else if (malfunctionManagerPID == -1)
     {
         // perror("Error creating Malfunction Manager process\n");
-        write_logfile("ERROR CREATING MALFUNCTION MANAGER PROCESS");
+        write_logfile("ERROR CREATING MALFUNCTION MANAGER PROCESS\n");
         exit(1);
     }
 
@@ -155,7 +155,7 @@ int main()
     waitpid(raceManagerPID, 0, 0);
     waitpid(malfunctionManagerPID, 0, 0);
 
-    write_logfile("SIMULATOR CLOSING");
+    write_logfile("SIMULATOR CLOSING\n");
 
     return 0;
 }
