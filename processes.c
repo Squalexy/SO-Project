@@ -230,6 +230,11 @@ void raceManager()
                         converted += 1;
                     }
 
+                    if(car_num <= 0){
+                        write_logfile("ERROR READING NAMED PIPE --- CAR_NUM MUST BE POSITIVE INTEGER\n");
+                        continue;
+                    }
+
                     if (strcmp(fields[4], "SPEED:") == 0)
                     {
                         car_speed = atoi(fields[5]);
