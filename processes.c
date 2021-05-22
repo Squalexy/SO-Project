@@ -138,6 +138,7 @@ void raceManager()
                         race->threads_created = -1;
                     
                         finished = 0;
+                        write_logfile("RACE ENDED");
                         pthread_cond_broadcast(&race->cv_race_started);
                         pthread_mutex_unlock(&race->race_mutex);
                         sigprocmask(SIG_UNBLOCK, &set_allow, NULL);
