@@ -116,8 +116,6 @@ void sigint_simulator(int signo)
     write_logfile("SIGNAL SIGINT RECEIVED");
 
     pthread_mutex_lock(&race->race_mutex);
-    race->race_started = 0;
-    race->threads_created = -1;
     race->end_sim = 1;
     pthread_cond_broadcast(&race->cv_race_started);
     pthread_mutex_unlock(&race->race_mutex);
@@ -141,7 +139,6 @@ void sigint_simulator(int signo)
     pthread_cond_destroy(&race->cv_waiting);
 
     pthread_mutex_destroy(&race->race_mutex);
-    pthread_mutex_destroy(&classif_mutex);
 
     // remove MSQ
     msgctl(mqid, IPC_RMID, 0);
@@ -211,6 +208,7 @@ void sigint_team(int signo)
 
     close(channels[teamID][1]);
     free(carThreads);
+    free(car_IDs);
 
     pthread_cond_destroy(&cond_box_free);
     pthread_cond_destroy(&cond_box_full);

@@ -30,11 +30,7 @@ int main()
         perror("ERROR OPENING LOG FILE.\n");
         exit(1);
     }
-
-    // -------------------- CREATE MUTEX SEMAPHORES -------------------- //
-
-    classif_mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
-
+    
     // -------------------- READ CONTENT FROM CONFIG FILE -------------------- //
 
     int *file_contents = read_content_from_file();
@@ -81,6 +77,9 @@ int main()
     race->team_count = 0;
     race->end_sim = 0;
     race->waiting = 0;
+
+    race->n_avarias = 0;
+    race->n_abastecimentos = 0;
     race->classificacao = 1;
 
     // -------------------- CREATE LOG FILE STRUCT -------------------- //
