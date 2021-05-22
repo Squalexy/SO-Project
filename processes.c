@@ -321,7 +321,7 @@ void raceManager()
 void teamManager()
 {
     int signo;
-    car_IDs[config->max_carros] = (int *) malloc(sizeof(int) * config->max_carros);
+    car_IDs = (int *) malloc(sizeof(int) * config->max_carros);
     carThreads = (pthread_t *)malloc(sizeof(pthread_t) * config->max_carros);
 
     sigprocmask(SIG_UNBLOCK, &set_allow, NULL);

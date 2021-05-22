@@ -199,6 +199,7 @@ void sigint_team(int signo)
 
     close(channels[teamID][1]);
     free(carThreads);
+    free(car_IDs);
 
     pthread_cond_destroy(&cond_box_free);
     pthread_cond_destroy(&cond_box_full);
