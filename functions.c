@@ -139,7 +139,6 @@ void sigint_simulator(int signo)
     pthread_cond_destroy(&race->cv_waiting);
 
     pthread_mutex_destroy(&race->race_mutex);
-    pthread_mutex_destroy(&classif_mutex);
 
     // remove MSQ
     msgctl(mqid, IPC_RMID, 0);

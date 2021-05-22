@@ -62,8 +62,6 @@ pthread_mutex_t mutex_box;
 pthread_cond_t cond_box_free;
 pthread_cond_t cond_box_full;
 
-pthread_mutex_t classif_mutex;
-
 // log file
 FILE *log_file;
 
@@ -100,9 +98,7 @@ typedef struct race_state_struct
     // statistics
     int n_avarias;
     int n_abastecimentos;
-    int n_cars_racing;
     int classificacao;
-
 } race_state;
 
 typedef struct car_struct_
