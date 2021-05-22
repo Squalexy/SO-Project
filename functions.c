@@ -22,17 +22,17 @@ int *read_content_from_file()
             {
                 token = strtok(line, ", ");
                 file_contents[i] = atoi(token);
-                if (token < 0)
+                if (file_contents[i] < 0)
                 {
-                    write_logfile("ERROR READING CONFIG FILE. A NEGATIVE NUMBER WAS INSERETED");
+                    write_logfile("ERROR READING CONFIG FILE. A NEGATIVE NUMBER WAS INSERTED");
                     exit(1);
                 }
                 i++;
                 token = strtok(NULL, ", ");
                 file_contents[i] = atoi(token);
-                if (token < 0)
+                if (file_contents[i] < 0)
                 {
-                    write_logfile("ERROR READING CONFIG FILE. A NEGATIVE NUMBER WAS INSERETED");
+                    write_logfile("ERROR READING CONFIG FILE. A NEGATIVE NUMBER WAS INSERTED");
                     exit(1);
                 }
             }
@@ -40,7 +40,7 @@ int *read_content_from_file()
             {
                 token = strtok(line, ", ");
                 file_contents[i] = atoi(token);
-                if (token < 0)
+                if (file_contents[i] < 0)
                 {
                     write_logfile("ERROR READING CONFIG FILE. A NEGATIVE NUMBER WAS INSERETED");
                     exit(1);
@@ -122,7 +122,7 @@ void sigint_simulator(int signo)
     pthread_cond_broadcast(&race->cv_race_started);
     pthread_mutex_unlock(&race->race_mutex);
 
-	  waitpid(malfunctionManagerPID, 0, 0);
+    waitpid(malfunctionManagerPID, 0, 0);
     waitpid(raceManagerPID, 0, 0);
 
     fclose(log_file);
@@ -164,7 +164,7 @@ void sigint_race(int signo)
     pthread_mutex_lock(&race->race_mutex);
     race->end_sim = 1;
     team_count = race->team_count;
-    while(race->waiting != team_count)
+    while (race->waiting != team_count)
     {
         pthread_cond_wait(&race->cv_waiting, &race->race_mutex);
     }
@@ -225,7 +225,8 @@ car_struct *sort_classif()
     {
         for (int j = i + 1; j < race->car_count; ++j)
         {
-            if (classifs[i].voltas == config->turns_number){
+            if (classifs[i].voltas == config->turns_number)
+            {
                 continue;
             }
             else if ((classifs[i].voltas < classifs[j].voltas) || (classifs[i].voltas == classifs[j].voltas && classifs[i].dist_percorrida < classifs[j].dist_percorrida) || classifs[i].classificacao < classifs[j].classificacao)
@@ -262,4 +263,98 @@ void print_statistics()
 
     printf("\n*******************************************************\n");
     free(final_classification);
+}
+
+bool check_int(char *variable)
+{
+    for (int i = 0; variable[i] != '\0'; i++)
+    {
+        if (variable[i] >= '0' && variable[i] <= '9')
+        {
+            continue;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+int check_commands(int car_num, int car_speed, int car_reliability, int converted, float car_consumption, char **fields, char *team_name, int team_count)
+{
+    
+    return 0;
+}
+
+int update_or_create_team(int team_count, char *team_name)
+{
+    int i;
+    for (i = 0; i < team_count; i++)
+    {
+        if (strcmp(team_name, all_teams[i].name) == 0)
+        {
+            if (all_teams[i].number_of_cars == config->max_carros)
+            {
+                return 1;
+            }
+            else
+            {
+                all_teams[i].number_of_cars++;
+                break;
+            }
+        }
+    }
+
+    if (i >= team_count)
+    {
+        strncpy(all_teams[team_count].name, team_name, TEAM_NAME_SIZE);
+        all_teams[team_count].number_of_cars = 0;
+
+        pid_t teamPID;
+        if ((teamPID = fork()) == 0)
+        {
+            close(channels[team_count][0]);
+            teamID = team_count;
+            teamManager();
+        }
+        else if (teamPID == -1)
+        {
+            write_logfile("ERROR CREATING TEAM MANAGER PROCESS");
+            exit(1);
+        }
+        teamsPID[team_count] = teamPID; // teams[ID_1, ID_2, ID_3,...]
+        close(channels[team_count][1]);
+        pthread_mutex_lock(&race->race_mutex);
+        race->team_count = ++team_count;
+        pthread_mutex_unlock(&race->race_mutex);
+    }
+    return 0;
+}
+
+void create_car_struct(char *team_name, int car_num, int car_speed, int car_consumption, int car_reliability)
+{
+    int car_i;
+    pthread_mutex_lock(&race->race_mutex);
+    car_i = (race->car_count)++;
+    pthread_mutex_unlock(&race->race_mutex);
+
+    strncpy(cars[car_i].team, team_name, TEAM_NAME_SIZE);
+    cars[car_i].num = car_num;
+    //cars[car_i].combustivel = (float)config->fuel_capacity;
+    //cars[car_i].avaria = WORKING;
+    //cars[car_i].dist_percorrida = 0.0;
+    //cars[car_i].voltas = 0;
+    //cars[car_i].state = CORRIDA;
+    cars[car_i].speed = car_speed;
+    cars[car_i].consumption = car_consumption;
+    cars[car_i].reliability = car_reliability;
+    //cars[car_i].n_stops_box = 0;
+    //cars[car_i].classificacao = 0;
+
+    //printf("Car %d struct: TEAM %s, AVARIA: %d, COMBUSTÍVEL: %f, d_PERCORRIDA: %f, VOLTAS: %d, STATE: %d, SPEED: %d, CONSUMPTION: %f, RELIABILITY: %d\n", cars[car_i].num, cars[car_i].team, cars[car_i].avaria, cars[car_i].combustivel, cars[car_i].dist_percorrida, cars[car_i].voltas, cars[car_i].state, cars[car_i].speed, cars[car_i].consumption, cars[car_i].reliability);
+
+    char car_text[LINESIZE];
+    sprintf(car_text, "NEW CAR LOADED => TEAM: %s, CAR: %d, SPEED: %d, CONSUMPTION: %.2f, RELIABILITY: %d", team_name, car_num, car_speed, car_consumption, car_reliability);
+    write_logfile(car_text);
 }

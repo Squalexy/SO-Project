@@ -157,8 +157,5 @@ int main()
 
     write_logfile("SIMULATOR CLOSING");
 
-    //clean_resources();
-
-
     return 0;
 }

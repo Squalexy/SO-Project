@@ -165,14 +165,11 @@ void raceManager()
                     printf("[RACE MANAGER Received \"%s\" command]\n", buffer);
 
                     char team_name[TEAM_NAME_SIZE];
-                    char err_log_str[LINESIZE] = "WRONG COMMAND => ";
                     char *token = NULL;
                     char fields[10][64]; // comando separado por vírgula e espaço (cada campo)
 
-                    int car_num, car_speed, car_reliability, converted = 0;
-                    float car_consumption;
-
-                    strcat(err_log_str, buffer);
+                    int car_num = 0, car_speed = 0, car_reliability = 0, converted = 0;
+                    float car_consumption = 0;
 
                     token = strtok(buffer + 7, ", "); // para tirar o ADDCAR
                     for (int i = 0; i < 10; i++)
@@ -181,6 +178,13 @@ void raceManager()
                         token = strtok(NULL, ", ");
                     }
 
+                    if (check_int(fields[3]) == false || check_int(fields[5]) == false || check_int(fields[9]) == false)
+                    {
+                        write_logfile("ERROR READING PIPE - INVALID NUMBER");
+                        break;
+                    }
+
+                    // reads commands and numbers from named pipe and checks if they are valid
                     if (strcmp(fields[0], "TEAM:") == 0)
                     {
                         strncpy(team_name, fields[1], TEAM_NAME_SIZE);
@@ -211,26 +215,34 @@ void raceManager()
                         converted += 1;
                     }
 
-                    // nem todos os campos foram convertidos corretamente
                     if (converted != 5)
                     {
-                        write_logfile(err_log_str);
-                        continue;
+                        write_logfile("ERROR READING NAMED PIPE - WRONG COMMAND\n");
+                        exit(1);
                     }
 
-                    // verificar se a equipa já existe
+                    // verifiy if a team exists; if it doesn't, creates a new one
                     int i;
                     for (i = 0; i < team_count; i++)
                     {
                         if (strcmp(team_name, all_teams[i].name) == 0)
-                            break;
+                        {
+                            if (all_teams[i].number_of_cars == config->max_carros)
+                            {
+                                continue;
+                            }
+                            else
+                            {
+                                all_teams[i].number_of_cars++;
+                                break;
+                            }
+                        }
                     }
 
-                    // -------------------- CREATE TEAMS -------------------- //
-                    // não encontrou a equipa => vai criá-la
                     if (i >= team_count)
                     {
                         strncpy(all_teams[team_count].name, team_name, TEAM_NAME_SIZE);
+                        all_teams[team_count].number_of_cars = 0;
 
                         pid_t teamPID;
                         if ((teamPID = fork()) == 0)
@@ -251,10 +263,7 @@ void raceManager()
                         pthread_mutex_unlock(&race->race_mutex);
                     }
 
-                    // -------------------- CREATE CAR STRUCT -------------------- //
-                    // se o comando e dados forem válidos
-                    // e não exceder o número de carros por equipa
-
+                    // if number of cars hasn't exceed maximum allowed and commands are valid, creates car struct
                     int car_i;
                     pthread_mutex_lock(&race->race_mutex);
                     car_i = (race->car_count)++;
@@ -333,7 +342,7 @@ void teamManager()
     sigprocmask(SIG_BLOCK, &set_allow, NULL);
     while (1)
     {
-        printf("---------------------\n[%ld] Team Manager #%d process working\n---------------------\n", (long)getpid(), teamID);
+        printf("---------------------\n[%ld] TEAM MANAGER #%d PROCESS WORKING\n---------------------\n", (long)getpid(), teamID);
         // -------------------- CREATE BOX -------------------- //
 
         all_teams[teamID].box_state = BOX_FREE;
