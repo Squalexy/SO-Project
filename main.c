@@ -81,6 +81,10 @@ int main()
     race->team_count = 0;
     race->end_sim = 0;
     race->waiting = 0;
+
+    race->n_avarias = 0;
+    race->n_abastecimentos = 0;
+    race->n_cars_racing = 0;
     race->classificacao = 1;
 
     // -------------------- CREATE LOG FILE STRUCT -------------------- //

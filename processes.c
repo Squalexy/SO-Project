@@ -72,7 +72,7 @@ void malfunctionManager(void)
 
 void raceManager()
 {
-    int n_teams = config->n_teams;
+    int n_teams = config->n_teams, signo;
     race->n_cars_racing = 0;
     teamsPID = (pid_t *)malloc(sizeof(pid_t) * n_teams);
     channels = (int **)malloc(sizeof(int *) * n_teams);
@@ -137,10 +137,15 @@ void raceManager()
                     {
                         race->race_started = 0;
                         race->threads_created = -1;
+                    
                         finished = 0;
                         pthread_cond_broadcast(&race->cv_race_started);
+                        pthread_mutex_unlock(&race->race_mutex);
+                        sigprocmask(SIG_UNBLOCK, &set_allow, NULL);
                     }
-                    pthread_mutex_unlock(&race->race_mutex);
+                    else{
+                        pthread_mutex_unlock(&race->race_mutex);
+                    }
                 }
             }
 
@@ -296,9 +301,14 @@ void raceManager()
                         write_logfile("CANNOT START, NOT ENOUGH TEAMS");
                         continue;
                     }
-
+                    sigprocmask(SIG_BLOCK, &set_allow, NULL);
                     // iniciar a corrida quando todos os team managers acabarem de criar as car threads
                     pthread_mutex_lock(&race->race_mutex);
+                    race->n_avarias = 0;
+                    race->n_abastecimentos = 0;
+                    race->n_cars_racing = 0;
+                    race->classificacao = 1;
+
                     race->threads_created = 0;
                     pthread_cond_broadcast(&race->cv_allow_teams);
 
@@ -502,7 +512,7 @@ void *carThread(void *id)
     car->voltas = 0;
     car->state = CORRIDA;
     car->n_stops_box = 0;
-    cars->classificacao = 0;
+    car->classificacao = 0;
 
     int pipe = channels[teamID][1];
 
@@ -659,7 +669,7 @@ void *carThread(void *id)
 
             else
             {
-                speed = cars->speed * 0.3;
+                speed = car->speed * 0.3;
                 consumption = car->consumption * 0.4;
                 usleep(time_units * 1000000);
                 car->combustivel -= consumption;
