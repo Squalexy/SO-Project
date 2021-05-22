@@ -1,6 +1,8 @@
-echo "ADDCAR TEAM: A, CAR: 1, SPEED: 30, CONSUMPTION: 0.12, RELIABILITY: 100" > np_race_manager
-echo "ADDCAR TEAM: B, CAR: 2, SPEED: 30, CONSUMPTION: 0.04, RELIABILITY: 100" > np_race_manager
-echo "ADDCAR TEAM: C, CAR: 3, SPEED: 35, CONSUMPTION: 0.04, RELIABILITY: 100" > np_race_manager
+echo "ADDCAR TEAM: A, CAR: 1, SPEED: 35, CONSUMPTION: 0.06, RELIABILITY: 67" > np_race_manager
+echo "ADDCAR TEAM: B, CAR: 2, SPEED: 30, CONSUMPTION: 0.04, RELIABILITY: 74" > np_race_manager
+echo "ADDCAR TEAM: C, CAR: 3, SPEED: 35, CONSUMPTION: 0.04, RELIABILITY: 32" > np_race_manager
 echo "ADDCAR TEAM: D, CAR: 4, SPEED: 30, CONSUMPTION: 0.09, RELIABILITY: 100" > np_race_manager
-echo "ADDCAR TEAM: E, CAR: 5, SPEED: 30, CONSUMPTION: 0.15, RELIABILITY: 100" > np_race_manager
+echo "ADDCAR TEAM: E, CAR: 5, SPEED: 30, CONSUMPTION: 0.15, RELIABILITY: 49" > np_race_manager
+echo "ADDCAR TEAM: A, CAR: 6, SPEED: 10, CONSUMPTION: 0.50, RELIABILITY: 58" > np_race_manager
+echo "ADDCAR TEAM: A, CAR: 7, SPEED: 40, CONSUMPTION: 0.10, RELIABILITY: 65" > np_race_manager
 echo 'START RACE!' > np_race_manager
