@@ -601,13 +601,14 @@ void *carThread(void *id)
                     pthread_mutex_unlock(&race->race_mutex);
 
                     // verificar se a box esta livre
-                    int box_state;
                     pthread_mutex_lock(&mutex_box);
-                    box_state = all_teams[team].box_state;
-                    pthread_mutex_unlock(&mutex_box);
-
-                    if (box_state == BOX_FREE)
+                    if (all_teams[team].box_state == BOX_FREE)
                     {
+            			all_teams[team].car_id = car_id;
+            			pthread_cond_signal(&cond_box_full);
+            			pthread_mutex_unlock(&mutex_box);
+            			printf("Car %d signaled the box with CV\n", car->num);
+
                         //* MUDA DE ESTADO
                         prev_state = car->state;
                         car->state = BOX;
@@ -617,6 +618,10 @@ void *carThread(void *id)
                         strcpy(mud_estado, "");
                         sprintf(mud_estado, "CAR %d CHANGED STATE <<CORRIDA>> TO STATE <<BOX>>\n", car->num);
                         write_logfile(mud_estado);
+                    }
+                    else
+                    {
+                    	pthread_mutex_unlock(&mutex_box);
                     }
                 }
             }
@@ -643,13 +648,14 @@ void *carThread(void *id)
                 pthread_mutex_unlock(&race->race_mutex);
 
                 // verificar se a box esta livre
-                int box_state;
                 pthread_mutex_lock(&mutex_box);
-                box_state = all_teams[team].box_state;
-                pthread_mutex_unlock(&mutex_box);
-
-                if (box_state != BOX_FULL)
+                if (all_teams[team].box_state != BOX_FULL)
                 {
+                	all_teams[team].car_id = car_id;
+            		pthread_cond_signal(&cond_box_full);
+            		pthread_mutex_unlock(&mutex_box);
+            		printf("Car %d signaled the box with CV\n", car->num);
+            		
                     //* MUDA DE ESTADO
                     prev_state = car->state;
                     car->state = BOX;
@@ -659,6 +665,9 @@ void *carThread(void *id)
                     strcpy(mud_estado, "");
                     sprintf(mud_estado, "CAR %d CHANGED STATE <<SEGURANCA>> TO STATE <<BOX>>\n", car->num);
                     write_logfile(mud_estado);
+                }else
+                {
+                	pthread_mutex_unlock(&mutex_box);
                 }
             }
 
@@ -674,17 +683,9 @@ void *carThread(void *id)
             break;
 
         case BOX:
-            printf("**Car %d is entering the box from team %s**\n", car->num, car->team);
             car->dist_percorrida = 0;
             speed = 0;
             consumption = 0;
-
-            printf("Car %d needs to enter box. Let me iiiin...\n", car->num);
-            pthread_mutex_lock(&mutex_box);
-            all_teams[team].car_id = car_id;
-            pthread_cond_signal(&cond_box_full);
-            pthread_mutex_unlock(&mutex_box);
-            printf("Car %d signaled the box with CV\n", car->num);
 
             printf("Car %d is gonna wait for the box to free him...\n", car->num);
             pthread_mutex_lock(&mutex_box);
