@@ -116,8 +116,6 @@ void sigint_simulator(int signo)
     write_logfile("SIGNAL SIGINT RECEIVED");
 
     pthread_mutex_lock(&race->race_mutex);
-    //race->race_started = 0;
-    //race->threads_created = -1;
     race->end_sim = 1;
     pthread_cond_broadcast(&race->cv_race_started);
     pthread_mutex_unlock(&race->race_mutex);
